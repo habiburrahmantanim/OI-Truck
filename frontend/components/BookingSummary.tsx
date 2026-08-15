@@ -1,0 +1,1 @@
+export default function BookingSummary() { return <aside className="rounded-xl bg-slate-100 p-6"><h2 className="text-lg font-bold">Booking summary</h2><p className="mt-4 text-sm text-slate-600">Choose your route and date to see an estimated total.</p></aside>; }

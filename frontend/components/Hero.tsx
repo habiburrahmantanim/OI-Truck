@@ -1,0 +1,3 @@
+import Link from "next/link";
+
+export default function Hero() { return <section className="bg-slate-950 px-6 py-24 text-white"><div className="mx-auto max-w-6xl"><p className="mb-3 font-semibold text-orange-400">RELIABLE LOGISTICS, ON DEMAND</p><h1 className="max-w-3xl text-5xl font-black leading-tight md:text-6xl">Move your goods with confidence.</h1><p className="mt-6 max-w-xl text-lg text-slate-300">Find the right vehicle, book in minutes, and follow every mile from pickup to delivery.</p><Link href="/booking" className="mt-8 inline-block rounded-lg bg-orange-500 px-6 py-3 font-bold text-white hover:bg-orange-600">Book a truck</Link></div></section>; }

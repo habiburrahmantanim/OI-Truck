@@ -1,0 +1,2 @@
+import { trackingSteps } from "@/data/data";
+export default function TrackingTimeline() { return <ol className="space-y-5 border-l-2 border-orange-200 pl-6">{trackingSteps.map((step, index) => <li key={step.label} className="relative"><span className="absolute -left-[33px] top-1 h-4 w-4 rounded-full bg-orange-500"/><p className="font-bold">{step.label}</p><p className="text-sm text-slate-600">{index === trackingSteps.length - 1 ? "Current status" : step.time}</p></li>)}</ol>; }
