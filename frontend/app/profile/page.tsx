@@ -14,30 +14,33 @@ import {
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
-import { useBookings } from "@/context/BookingContext";
+import { useBooking, type Booking } from "@/context/BookingContext";
 
 export default function ProfilePage() {
-  const { bookings } = useBookings();
+  const { bookings } = useBooking();
 
   const totalBookings = bookings.length;
 
   const completedBookings = bookings.filter(
-    (booking) => booking.status === "Completed",
+    (booking: Booking) => booking.status === "Delivered",
   ).length;
 
-  const activeBookings = bookings.filter((booking) =>
-    ["Pending", "Confirmed", "Driver Assigned", "On The Way"].includes(
+  const activeBookings = bookings.filter((booking: Booking) =>
+    ["Confirmed", "Driver Assigned", "Picked Up", "In Transit"].includes(
       booking.status,
     ),
   ).length;
 
   const cancelledBookings = bookings.filter(
-    (booking) => booking.status === "Cancelled",
+    (booking: Booking) => booking.status === "Cancelled",
   ).length;
 
   const totalSpent = bookings
-    .filter((booking) => booking.status !== "Cancelled")
-    .reduce((total, booking) => total + booking.totalPrice, 0);
+    .filter((booking: Booking) => booking.status !== "Cancelled")
+    .reduce(
+      (total: number, booking: Booking) => total + booking.estimatedFare,
+      0,
+    );
 
   const recentBookings = bookings.slice(0, 5);
 
@@ -225,7 +228,7 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                {recentBookings.map((booking) => (
+                {recentBookings.map((booking: Booking) => (
                   <article
                     key={booking.id}
                     className="rounded-2xl bg-white p-5 shadow-sm"
@@ -273,7 +276,7 @@ export default function ProfilePage() {
                           <p className="my-1 text-xs text-slate-400">↓</p>
 
                           <p className="truncate text-sm font-medium text-slate-700">
-                            {booking.deliveryLocation}
+                            {booking.dropLocation}
                           </p>
                         </div>
                       </div>
@@ -284,7 +287,7 @@ export default function ProfilePage() {
                         <p className="text-xs text-slate-400">Total Amount</p>
 
                         <p className="mt-1 font-bold text-orange-500">
-                          ৳{booking.totalPrice.toLocaleString()}
+                          ৳{booking.estimatedFare.toLocaleString()}
                         </p>
                       </div>
 

@@ -33,10 +33,10 @@ export default function BookingPage() {
 
     const truckExists = trucks.some((truck) => truck.id === id);
 
-    return truckExists ? id : trucks[0].id;
+    return truckExists ? id : (trucks[0]?.id ?? 0);
   }, [truckFromUrl]);
 
-  const [vehicle, setVehicle] = useState<number>(initialTruckId);
+  const [vehicle, setVehicle] = useState(initialTruckId);
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [pickupLocation, setPickupLocation] = useState("");
@@ -46,6 +46,7 @@ export default function BookingPage() {
   const [cargoType, setCargoType] = useState("");
   const [weight, setWeight] = useState("");
   const [promoCode, setPromoCode] = useState("");
+  const [promoApplied, setPromoApplied] = useState(false);
   const [promoMessage, setPromoMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [bookingId, setBookingId] = useState("");
@@ -56,23 +57,47 @@ export default function BookingPage() {
 
   const selectedTruck = trucks.find((truck) => truck.id === vehicle);
 
-  const baseFare = selectedTruck?.price || 0;
-  const serviceFee = baseFare > 0 ? Math.round(baseFare * 0.05) : 0;
+  const baseFare = selectedTruck?.price ?? 0;
+  const serviceFee = Math.round(baseFare * 0.05);
 
-  const discount =
-    promoCode.toUpperCase() === "TRUCK10" ? Math.round(baseFare * 0.1) : 0;
+  const discount = promoApplied ? Math.round(baseFare * 0.1) : 0;
 
   const totalPrice = Math.max(0, baseFare + serviceFee - discount);
 
+  // Converts values like "1 Ton", "2.5 Ton" to KG.
+  const capacityInKg = useMemo(() => {
+    if (!selectedTruck?.capacity) return 0;
+
+    const number = Number(selectedTruck.capacity.replace(/[^0-9.]/g, ""));
+
+    const lowerCapacity = selectedTruck.capacity.toLowerCase();
+
+    if (lowerCapacity.includes("kg")) {
+      return number;
+    }
+
+    return number * 1000;
+  }, [selectedTruck]);
+
+  const weightNumber = Number(weight) || 0;
+
+  const isOverweight =
+    weightNumber > 0 && capacityInKg > 0 && weightNumber > capacityInKg;
+
   function applyPromoCode() {
-    if (!promoCode.trim()) {
+    const code = promoCode.trim().toUpperCase();
+
+    if (!code) {
+      setPromoApplied(false);
       setPromoMessage("Please enter a promo code.");
       return;
     }
 
-    if (promoCode.toUpperCase() === "TRUCK10") {
+    if (code === "TRUCK10") {
+      setPromoApplied(true);
       setPromoMessage("Promo applied! You received 10% discount.");
     } else {
+      setPromoApplied(false);
       setPromoMessage("Invalid promo code.");
     }
   }
@@ -80,30 +105,46 @@ export default function BookingPage() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!selectedTruck) {
+      alert("Please select a truck.");
+      return;
+    }
+
     if (
-      !selectedTruck ||
       !customerName.trim() ||
       !phone.trim() ||
       !pickupLocation.trim() ||
       !deliveryLocation.trim() ||
       !pickupDate ||
+      !pickupTime ||
       !cargoType.trim() ||
-      !weight
+      !weightNumber
     ) {
       alert("Please fill in all required fields.");
       return;
     }
 
+    if (isOverweight) {
+      alert(
+        `Cargo weight exceeds this truck capacity of ${capacityInKg.toLocaleString()} KG.`,
+      );
+      return;
+    }
+
     const newBooking = {
-      id: `TL-${Date.now().toString().slice(-6)}`,
-      customerName,
-      phone,
-      pickupLocation,
-      deliveryLocation,
+      id: `TL-${Date.now().toString().slice(-8)}`,
+
+      customerName: customerName.trim(),
+      phone: phone.trim(),
+
+      pickupLocation: pickupLocation.trim(),
+      deliveryLocation: deliveryLocation.trim(),
+
       pickupDate,
       pickupTime,
-      cargoType,
-      weight: Number(weight),
+
+      cargoType: cargoType.trim(),
+      weight: weightNumber,
 
       truckId: selectedTruck.id,
       truckName: selectedTruck.name,
@@ -200,9 +241,8 @@ export default function BookingPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-3">
-            {/* LEFT COLUMN */}
+            {/* LEFT SIDE */}
             <div className="space-y-6 lg:col-span-2">
-              {/* CUSTOMER DETAILS */}
               <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
                 <SectionTitle
                   icon={<User size={22} />}
@@ -232,7 +272,6 @@ export default function BookingPage() {
                 </div>
               </section>
 
-              {/* PICKUP & DELIVERY */}
               <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
                 <SectionTitle
                   icon={<MapPin size={22} />}
@@ -261,7 +300,6 @@ export default function BookingPage() {
                 </div>
               </section>
 
-              {/* PICKUP SCHEDULE */}
               <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
                 <SectionTitle
                   icon={<CalendarDays size={22} />}
@@ -285,11 +323,11 @@ export default function BookingPage() {
                     value={pickupTime}
                     onChange={setPickupTime}
                     type="time"
+                    required
                   />
                 </div>
               </section>
 
-              {/* CARGO DETAILS */}
               <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
                 <SectionTitle
                   icon={<Package size={22} />}
@@ -318,19 +356,15 @@ export default function BookingPage() {
                   />
                 </div>
 
-                {/* TRUCK CAPACITY WARNING */}
-                {selectedTruck && weight && (
-                  <CapacityWarning
-                    weight={Number(weight)}
-                    capacity={selectedTruck.capacity}
-                  />
-                )}
+                <CapacityWarning
+                  weight={weightNumber}
+                  capacityInKg={capacityInKg}
+                />
               </section>
             </div>
 
-            {/* RIGHT COLUMN */}
+            {/* RIGHT SIDE */}
             <aside className="space-y-6">
-              {/* SELECTED TRUCK PREVIEW */}
               {selectedTruck && (
                 <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
                   <div className="relative h-44">
@@ -345,9 +379,7 @@ export default function BookingPage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
                     <div className="absolute bottom-4 left-4">
-                      <p className="text-sm font-medium text-white/80">
-                        Selected Truck
-                      </p>
+                      <p className="text-sm text-white/80">Selected Truck</p>
 
                       <h2 className="text-xl font-bold text-white">
                         {selectedTruck.name}
@@ -367,9 +399,9 @@ export default function BookingPage() {
                         </p>
                       </div>
 
-                      <div className="rounded-xl bg-orange-100 px-3 py-2 text-sm font-bold text-orange-600">
+                      <span className="rounded-xl bg-orange-100 px-3 py-2 text-sm font-bold text-orange-600">
                         {selectedTruck.category}
-                      </div>
+                      </span>
                     </div>
 
                     <p className="mt-4 text-sm leading-6 text-slate-500">
@@ -390,12 +422,11 @@ export default function BookingPage() {
                 </section>
               )}
 
-              {/* TRUCK SELECTION */}
-              <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
+              <section className="rounded-2xl bg-white p-5 shadow-sm">
                 <SectionTitle
                   icon={<Truck size={22} />}
                   title="Select Truck"
-                  description="Choose the best vehicle for your cargo."
+                  description="Choose the best vehicle."
                 />
 
                 <div className="mt-5 space-y-3">
@@ -408,7 +439,7 @@ export default function BookingPage() {
                           : "border-slate-200 hover:border-orange-300"
                       }`}
                     >
-                      <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex items-center gap-3">
                         <input
                           type="radio"
                           name="truck"
@@ -417,18 +448,18 @@ export default function BookingPage() {
                           className="accent-orange-500"
                         />
 
-                        <div className="min-w-0">
-                          <p className="truncate font-bold text-slate-800">
+                        <div>
+                          <p className="font-bold text-slate-800">
                             {truck.name}
                           </p>
 
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="text-xs text-slate-500">
                             {truck.capacity}
                           </p>
                         </div>
                       </div>
 
-                      <p className="shrink-0 font-bold text-orange-500">
+                      <p className="font-bold text-orange-500">
                         ৳{truck.price.toLocaleString()}
                       </p>
                     </label>
@@ -436,8 +467,7 @@ export default function BookingPage() {
                 </div>
               </section>
 
-              {/* PROMO CODE */}
-              <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
+              <section className="rounded-2xl bg-white p-5 shadow-sm">
                 <SectionTitle
                   icon={<Tag size={22} />}
                   title="Promo Code"
@@ -450,16 +480,17 @@ export default function BookingPage() {
                     value={promoCode}
                     onChange={(event) => {
                       setPromoCode(event.target.value);
+                      setPromoApplied(false);
                       setPromoMessage("");
                     }}
-                    placeholder="Enter promo code"
-                    className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm uppercase outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+                    placeholder="Promo code"
+                    className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm uppercase outline-none focus:border-orange-500"
                   />
 
                   <button
                     type="button"
                     onClick={applyPromoCode}
-                    className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+                    className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white"
                   >
                     Apply
                   </button>
@@ -468,9 +499,7 @@ export default function BookingPage() {
                 {promoMessage && (
                   <p
                     className={`mt-3 text-sm font-medium ${
-                      promoCode.toUpperCase() === "TRUCK10"
-                        ? "text-green-600"
-                        : "text-red-500"
+                      promoApplied ? "text-green-600" : "text-red-500"
                     }`}
                   >
                     {promoMessage}
@@ -478,19 +507,18 @@ export default function BookingPage() {
                 )}
               </section>
 
-              {/* BOOKING SUMMARY */}
-              <section className="sticky top-24 rounded-2xl bg-slate-900 p-5 text-white shadow-sm sm:p-6">
+              <section className="sticky top-24 rounded-2xl bg-slate-900 p-5 text-white shadow-sm">
                 <h2 className="text-xl font-bold">Booking Summary</h2>
 
                 <div className="mt-5 space-y-4 text-sm">
                   <SummaryRow
                     label="Truck"
-                    value={selectedTruck?.name || "-"}
+                    value={selectedTruck?.name ?? "-"}
                   />
 
                   <SummaryRow
                     label="Capacity"
-                    value={selectedTruck?.capacity || "-"}
+                    value={selectedTruck?.capacity ?? "-"}
                   />
 
                   <SummaryRow
@@ -524,15 +552,12 @@ export default function BookingPage() {
 
                 <button
                   type="submit"
-                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-4 font-bold text-white transition hover:bg-orange-600"
+                  disabled={isOverweight}
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-4 font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Confirm Booking
                   <ChevronRight size={20} />
                 </button>
-
-                <p className="mt-4 text-center text-xs leading-5 text-slate-400">
-                  By confirming, you agree to our booking terms and conditions.
-                </p>
               </section>
             </aside>
           </form>
@@ -542,15 +567,15 @@ export default function BookingPage() {
   );
 }
 
-/* ================= COMPONENTS ================= */
-
-interface SectionTitleProps {
+function SectionTitle({
+  icon,
+  title,
+  description,
+}: {
   icon: React.ReactNode;
   title: string;
   description: string;
-}
-
-function SectionTitle({ icon, title, description }: SectionTitleProps) {
+}) {
   return (
     <div className="flex items-start gap-3">
       <div className="rounded-xl bg-orange-100 p-3 text-orange-500">{icon}</div>
@@ -564,16 +589,6 @@ function SectionTitle({ icon, title, description }: SectionTitleProps) {
   );
 }
 
-interface InputFieldProps {
-  label: string;
-  icon: React.ReactNode;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  type?: string;
-  required?: boolean;
-}
-
 function InputField({
   label,
   icon,
@@ -582,19 +597,26 @@ function InputField({
   placeholder,
   type = "text",
   required = false,
-}: InputFieldProps) {
+}: {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+  required?: boolean;
+}) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-slate-700">
         {label}
-
         {required && <span className="ml-1 text-red-500">*</span>}
       </span>
 
       <div className="relative">
-        <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
           {icon}
-        </div>
+        </span>
 
         <input
           type={type}
@@ -636,15 +658,11 @@ function SummaryRow({
 
 function CapacityWarning({
   weight,
-  capacity,
+  capacityInKg,
 }: {
   weight: number;
-  capacity: string;
+  capacityInKg: number;
 }) {
-  const capacityInTons = Number(capacity.replace(/[^0-9.]/g, ""));
-
-  const capacityInKg = capacityInTons * 1000;
-
   if (!weight || weight <= 0 || !capacityInKg) {
     return null;
   }
@@ -659,22 +677,15 @@ function CapacityWarning({
           : "border-green-200 bg-green-50 text-green-700"
       }`}
     >
-      {isOverweight ? (
-        <>
-          <strong>Weight exceeds truck capacity.</strong>
-          <p className="mt-1">
-            This truck supports up to {capacityInKg.toLocaleString()} KG. Please
-            select a larger truck.
-          </p>
-        </>
-      ) : (
-        <>
-          <strong>Weight is within truck capacity.</strong>
-          <p className="mt-1">
-            Maximum capacity: {capacityInKg.toLocaleString()} KG.
-          </p>
-        </>
-      )}
+      <strong>
+        {isOverweight
+          ? "Weight exceeds truck capacity."
+          : "Weight is within truck capacity."}
+      </strong>
+
+      <p className="mt-1">
+        Maximum capacity: {capacityInKg.toLocaleString()} KG.
+      </p>
     </div>
   );
 }

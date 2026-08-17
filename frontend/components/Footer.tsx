@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Mail, MapPin, Phone, Send, Truck } from "lucide-react";
 
 import {
@@ -11,7 +14,17 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 export default function Footer() {
-  const currentYear = new Date().getFullYear();
+  const pathname = usePathname();
+  const currentYear = 2026;
+
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/driver") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register")
+  ) {
+    return null;
+  }
 
   return (
     <footer className="bg-slate-950 text-slate-300">

@@ -134,6 +134,17 @@ export default function Navbar() {
             </Link>
 
             <Link
+              href="/register"
+              className={`text-sm font-semibold transition ${
+                pathname.startsWith("/register") || pathname.startsWith("/driver/register")
+                  ? "text-orange-500"
+                  : "text-slate-700 hover:text-orange-500"
+              }`}
+            >
+              Sign up
+            </Link>
+
+            <Link
               href="/booking"
               className="rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600"
             >
@@ -257,23 +268,23 @@ export default function Navbar() {
               Account
             </p>
 
-            <Link
-              href="/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className={`group flex items-center justify-between rounded-2xl px-4 py-3.5 transition ${
-                pathname === "/login"
-                  ? "bg-orange-50 text-orange-600"
-                  : "text-slate-700 hover:bg-slate-50"
-              }`}
-            >
+            <Link href="/login" onClick={() => setMobileMenuOpen(false)} className={`group flex items-center justify-between rounded-2xl px-4 py-3.5 transition ${pathname === "/login" ? "bg-orange-50 text-orange-600" : "text-slate-700 hover:bg-slate-50"}`}>
               <div className="flex items-center gap-4">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 group-hover:bg-orange-100 group-hover:text-orange-500">
                   <User size={21} />
                 </div>
 
-                <span className="font-semibold">Login / Sign Up</span>
+                <span className="font-semibold">Login</span>
               </div>
 
+              <ChevronRight size={20} className="text-slate-300" />
+            </Link>
+
+            <Link href="/register" onClick={() => setMobileMenuOpen(false)} className={`group mt-2 flex items-center justify-between rounded-2xl px-4 py-3.5 transition ${pathname.startsWith("/register") || pathname.startsWith("/driver/register") ? "bg-orange-50 text-orange-600" : "text-slate-700 hover:bg-slate-50"}`}>
+              <div className="flex items-center gap-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-100 text-orange-600"><User size={21} /></div>
+                <span className="font-semibold">Sign up</span>
+              </div>
               <ChevronRight size={20} className="text-slate-300" />
             </Link>
           </div>

@@ -3,6 +3,7 @@ import "./globals.css";
 
 import { BookingProvider } from "@/context/BookingContext";
 import CanvasCursor from "@/components/CanvasCursor";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Truck Lagbe",
@@ -20,6 +21,7 @@ export default function RootLayout({
         <BookingProvider>
           <CanvasCursor />
           {children}
+          <Footer />
         </BookingProvider>
       </body>
     </html>
