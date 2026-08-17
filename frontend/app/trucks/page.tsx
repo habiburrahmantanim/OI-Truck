@@ -378,7 +378,7 @@ function TruckCard({ truck }: { truck: TruckType }) {
 
         {/* FEATURES */}
         <div className="mt-5 space-y-2 border-t border-slate-100 pt-5">
-          {truck.features.slice(0, 3).map((feature) => (
+          {truck.idealFor.slice(0, 3).map((feature) => (
             <div
               key={feature}
               className="flex items-center gap-2.5 text-sm text-slate-600"

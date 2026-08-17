@@ -426,6 +426,10 @@ function BookingStatus({ status }: { status: Booking["status"] }) {
   const styles: Record<Booking["status"], string> = {
     Pending: "border-amber-200 bg-amber-100 text-amber-700",
     Confirmed: "border-blue-200 bg-blue-100 text-blue-700",
+    "Driver Assigned": "border-blue-200 bg-blue-100 text-blue-700",
+    Assigned: "border-blue-200 bg-blue-100 text-blue-700",
+    "On the Way": "border-purple-200 bg-purple-100 text-purple-700",
+    "Picked Up": "border-purple-200 bg-purple-100 text-purple-700",
     "In Transit": "border-purple-200 bg-purple-100 text-purple-700",
     Delivered: "border-green-200 bg-green-100 text-green-700",
     Cancelled: "border-red-200 bg-red-100 text-red-700",

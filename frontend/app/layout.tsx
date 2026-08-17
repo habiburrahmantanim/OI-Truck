@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+import { AuthProvider } from "@/context/AuthContext";
 import { BookingProvider } from "@/context/BookingContext";
-import CanvasCursor from "@/components/CanvasCursor";
+import { DriverProvider } from "@/context/DriverContext";
+import { TruckProvider } from "@/context/TruckContext";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "Truck Lagbe",
-  description: "Book trucks easily for your deliveries",
+  title: "OI-Truck | Truck Lagbe",
+  description: "Modern Truck Booking Platform",
 };
 
 export default function RootLayout({
@@ -18,11 +20,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <BookingProvider>
-          <CanvasCursor />
-          {children}
-          <Footer />
-        </BookingProvider>
+        <AuthProvider>
+          <TruckProvider>
+            <DriverProvider>
+              <BookingProvider>
+                {children}
+                <Footer />
+              </BookingProvider>
+            </DriverProvider>
+          </TruckProvider>
+        </AuthProvider>
       </body>
     </html>
   );

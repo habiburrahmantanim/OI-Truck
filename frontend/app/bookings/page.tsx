@@ -17,6 +17,7 @@ import {
 import Navbar from "@/components/Navbar";
 import { trucks } from "@/data/data";
 import { useBookings } from "@/context/BookingContext";
+import type { BookingStatus } from "@/types/booking";
 
 type FilterStatus =
   | "All"
@@ -209,7 +210,7 @@ interface BookingCardProps {
     serviceFee: number;
     discount: number;
     totalPrice: number;
-    status: "Pending" | "Confirmed" | "In Transit" | "Delivered" | "Cancelled";
+    status: BookingStatus;
     createdAt: string;
   };
   image: string;

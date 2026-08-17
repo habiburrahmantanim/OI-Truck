@@ -133,12 +133,15 @@ export default function BookingPage() {
 
     const newBooking = {
       id: `TL-${Date.now().toString().slice(-8)}`,
+      bookingId: `TL-${Date.now().toString().slice(-8)}`,
 
       customerName: customerName.trim(),
       phone: phone.trim(),
+      customerPhone: phone.trim(),
 
       pickupLocation: pickupLocation.trim(),
       deliveryLocation: deliveryLocation.trim(),
+      dropLocation: deliveryLocation.trim(),
 
       pickupDate,
       pickupTime,
@@ -154,6 +157,7 @@ export default function BookingPage() {
       serviceFee,
       discount,
       totalPrice,
+      estimatedFare: totalPrice,
 
       status: "Pending" as const,
       createdAt: new Date().toISOString(),
@@ -376,7 +380,7 @@ export default function BookingPage() {
                       sizes="(max-width: 1024px) 100vw, 33vw"
                     />
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
 
                     <div className="absolute bottom-4 left-4">
                       <p className="text-sm text-white/80">Selected Truck</p>

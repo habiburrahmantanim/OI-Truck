@@ -8,78 +8,45 @@ import {
   useState,
 } from "react";
 
-/* ================= TYPES ================= */
+import { Booking, BookingStatus } from "@/types/booking";
 
-export type BookingStatus =
-  | "Pending"
-  | "Confirmed"
-  | "Assigned"
-  | "On the Way"
-  | "Picked Up"
-  | "In Transit"
-  | "Delivered"
-  | "Cancelled";
-
-export interface Booking {
-  id: string;
-
-  // Customer
-  customerName: string;
-  phone: string;
-
-  // Location
-  pickupLocation: string;
-  deliveryLocation: string;
-
-  // Schedule
-  pickupDate: string;
-  pickupTime: string;
-
-  // Cargo
-  cargoType: string;
-  weight: number;
-
-  // Truck
-  truckId: number;
-  truckName: string;
-  truckCapacity: string;
-
-  // Price
-  baseFare: number;
-  serviceFee: number;
-  discount: number;
-  totalPrice: number;
-
-  // Status
-  status: BookingStatus;
-  createdAt: string;
-}
+export type { Booking, BookingStatus } from "@/types/booking";
 
 interface BookingContextType {
   bookings: Booking[];
+  isLoaded: boolean;
   addBooking: (booking: Booking) => void;
   getBookingById: (id: string) => Booking | undefined;
+
   updateBookingStatus: (id: string, status: BookingStatus) => void;
+
+  updateBooking: (booking: Booking) => void;
+
   deleteBooking: (id: string) => void;
+  cancelBooking: (id: string) => void;
 }
 
-/* ================= CONTEXT ================= */
-
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
-
-/* ================= PROVIDER ================= */
 
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load bookings from localStorage
   useEffect(() => {
     try {
       const savedBookings = localStorage.getItem("trucklagbe_bookings");
 
       if (savedBookings) {
-        setBookings(JSON.parse(savedBookings));
+        const parsedBookings = JSON.parse(savedBookings) as Booking[];
+        setBookings(
+          parsedBookings.map((booking) => ({
+            ...booking,
+            bookingId: booking.bookingId ?? booking.id,
+            customerPhone: booking.customerPhone ?? booking.phone,
+            dropLocation: booking.dropLocation ?? booking.deliveryLocation,
+            estimatedFare: booking.estimatedFare ?? booking.totalPrice,
+          })),
+        );
       }
     } catch (error) {
       console.error("Failed to load bookings:", error);
@@ -88,18 +55,11 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Save bookings to localStorage
   useEffect(() => {
     if (!isLoaded) return;
 
-    try {
-      localStorage.setItem("trucklagbe_bookings", JSON.stringify(bookings));
-    } catch (error) {
-      console.error("Failed to save bookings:", error);
-    }
+    localStorage.setItem("trucklagbe_bookings", JSON.stringify(bookings));
   }, [bookings, isLoaded]);
-
-  /* ================= FUNCTIONS ================= */
 
   function addBooking(booking: Booking) {
     setBookings((previousBookings) => [booking, ...previousBookings]);
@@ -122,28 +82,41 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  function updateBooking(updatedBooking: Booking) {
+    setBookings((previousBookings) =>
+      previousBookings.map((booking) =>
+        booking.id === updatedBooking.id ? updatedBooking : booking,
+      ),
+    );
+  }
+
   function deleteBooking(id: string) {
     setBookings((previousBookings) =>
       previousBookings.filter((booking) => booking.id !== id),
     );
   }
 
+  function cancelBooking(id: string) {
+    updateBookingStatus(id, "Cancelled");
+  }
+
   return (
     <BookingContext.Provider
       value={{
         bookings,
+        isLoaded,
         addBooking,
         getBookingById,
         updateBookingStatus,
+        updateBooking,
         deleteBooking,
+        cancelBooking,
       }}
     >
       {children}
     </BookingContext.Provider>
   );
 }
-
-/* ================= CUSTOM HOOK ================= */
 
 export function useBookings() {
   const context = useContext(BookingContext);
@@ -154,3 +127,6 @@ export function useBookings() {
 
   return context;
 }
+
+// Keep the singular hook as a compatibility alias for existing operation pages.
+export const useBooking = useBookings;

@@ -2,20 +2,31 @@ export type BookingStatus =
   | "Pending"
   | "Confirmed"
   | "Driver Assigned"
-  | "On The Way"
-  | "Completed"
+  | "Assigned"
+  | "On the Way"
+  | "Picked Up"
+  | "In Transit"
+  | "Delivered"
   | "Cancelled";
 
 export interface Booking {
   id: string;
+  /** Compatibility fields kept while older operation screens migrate to the canonical names. */
+  bookingId: string;
 
   // Customer
   customerName: string;
   phone: string;
+  customerPhone: string;
 
   // Locations
   pickupLocation: string;
   deliveryLocation: string;
+  dropLocation: string;
+
+  // Schedule
+  pickupDate: string;
+  pickupTime: string;
 
   // Cargo
   cargoType: string;
@@ -26,16 +37,24 @@ export interface Booking {
   truckName: string;
   truckCapacity: string;
 
-  // Booking
-  pickupDate: string;
-  pickupTime?: string;
-  createdAt: string;
+  // Driver
+  driverId?: string;
+  driverName?: string;
+  driverPhone?: string;
 
-  // Payment
+  // Price
   baseFare: number;
   serviceFee: number;
+  discount: number;
   totalPrice: number;
+  estimatedFare: number;
 
-  // Status
+  // Payment
+  paymentMethod?: string;
+  paymentStatus?: "Pending" | "Paid" | "Failed";
+
+  // Booking
   status: BookingStatus;
+
+  createdAt: string;
 }
