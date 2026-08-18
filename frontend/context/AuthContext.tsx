@@ -28,6 +28,7 @@ interface AuthContextType {
   register: (userData: Omit<User, "id" | "createdAt" | "isActive">) => {
     success: boolean;
     message?: string;
+    user?: User;
   };
 
   logout: () => void;
@@ -139,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {
       success: true,
       message: "Registration successful.",
+      user: newUser,
     };
   }
 
