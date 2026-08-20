@@ -6,6 +6,7 @@ import { BookingProvider } from "@/context/BookingContext";
 import { DriverProvider } from "@/context/DriverContext";
 import { TruckProvider } from "@/context/TruckContext";
 import Footer from "@/components/Footer";
+import CanvasCursor from "@/components/CanvasCursor";
 
 export const metadata: Metadata = {
   title: "OI-Truck | Truck Lagbe",
@@ -25,6 +26,7 @@ export default function RootLayout({
             <DriverProvider>
               <BookingProvider>
                 {children}
+                <CanvasCursor />
                 <Footer />
               </BookingProvider>
             </DriverProvider>

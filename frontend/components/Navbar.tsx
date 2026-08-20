@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDays,
   ChevronRight,
   Home,
+  LogOut,
   Menu,
   Search,
   Truck,
@@ -13,6 +14,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+
+import { useAuth } from "@/context/AuthContext";
+import { dashboardFor } from "@/components/auth/RouteGuard";
 
 const navLinks = [
   {
@@ -44,7 +48,15 @@ const navLinks = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, isLoaded, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  function handleLogout() {
+    logout();
+    setMobileMenuOpen(false);
+    router.push("/");
+  }
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -122,27 +134,60 @@ export default function Navbar() {
 
           {/* DESKTOP BUTTONS */}
           <div className="hidden items-center gap-4 xl:flex">
-            <Link
-              href="/login"
-              className={`text-sm font-semibold transition ${
-                pathname === "/login"
-                  ? "text-orange-500"
-                  : "text-slate-700 hover:text-orange-500"
-              }`}
-            >
-              Login
-            </Link>
+            {isLoaded &&
+              (user ? (
+                <>
+                  <Link
+                    href={dashboardFor(user.role)}
+                    className="flex items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-orange-500"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
 
-            <Link
-              href="/register"
-              className={`text-sm font-semibold transition ${
-                pathname.startsWith("/register") || pathname.startsWith("/driver/register")
-                  ? "text-orange-500"
-                  : "text-slate-700 hover:text-orange-500"
-              }`}
-            >
-              Sign up
-            </Link>
+                    <span className="flex flex-col leading-tight">
+                      <span>{user.name}</span>
+                      <span className="text-xs font-medium capitalize text-slate-400">
+                        {user.role}
+                      </span>
+                    </span>
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 transition hover:text-red-500"
+                  >
+                    <LogOut size={17} />
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className={`text-sm font-semibold transition ${
+                      pathname === "/login"
+                        ? "text-orange-500"
+                        : "text-slate-700 hover:text-orange-500"
+                    }`}
+                  >
+                    Login
+                  </Link>
+
+                  <Link
+                    href="/register"
+                    className={`text-sm font-semibold transition ${
+                      pathname.startsWith("/register") ||
+                      pathname.startsWith("/driver/register")
+                        ? "text-orange-500"
+                        : "text-slate-700 hover:text-orange-500"
+                    }`}
+                  >
+                    Sign up
+                  </Link>
+                </>
+              ))}
 
             <Link
               href="/booking"
@@ -268,25 +313,68 @@ export default function Navbar() {
               Account
             </p>
 
-            <Link href="/login" onClick={() => setMobileMenuOpen(false)} className={`group flex items-center justify-between rounded-2xl px-4 py-3.5 transition ${pathname === "/login" ? "bg-orange-50 text-orange-600" : "text-slate-700 hover:bg-slate-50"}`}>
-              <div className="flex items-center gap-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 group-hover:bg-orange-100 group-hover:text-orange-500">
-                  <User size={21} />
-                </div>
+            {isLoaded && user ? (
+              <>
+                <Link
+                  href={dashboardFor(user.role)}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="group flex items-center justify-between rounded-2xl px-4 py-3.5 text-slate-700 transition hover:bg-slate-50"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-100 text-sm font-bold text-orange-600">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
 
-                <span className="font-semibold">Login</span>
-              </div>
+                    <div>
+                      <span className="block font-semibold">{user.name}</span>
+                      <span className="block text-xs font-medium capitalize text-slate-400">
+                        {user.role}
+                      </span>
+                    </div>
+                  </div>
 
-              <ChevronRight size={20} className="text-slate-300" />
-            </Link>
+                  <ChevronRight size={20} className="text-slate-300" />
+                </Link>
 
-            <Link href="/register" onClick={() => setMobileMenuOpen(false)} className={`group mt-2 flex items-center justify-between rounded-2xl px-4 py-3.5 transition ${pathname.startsWith("/register") || pathname.startsWith("/driver/register") ? "bg-orange-50 text-orange-600" : "text-slate-700 hover:bg-slate-50"}`}>
-              <div className="flex items-center gap-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-100 text-orange-600"><User size={21} /></div>
-                <span className="font-semibold">Sign up</span>
-              </div>
-              <ChevronRight size={20} className="text-slate-300" />
-            </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="group mt-2 flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-slate-700 transition hover:bg-red-50"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition group-hover:bg-red-100 group-hover:text-red-500">
+                      <LogOut size={21} />
+                    </div>
+
+                    <span className="font-semibold">Logout</span>
+                  </div>
+
+                  <ChevronRight size={20} className="text-slate-300" />
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className={`group flex items-center justify-between rounded-2xl px-4 py-3.5 transition ${pathname === "/login" ? "bg-orange-50 text-orange-600" : "text-slate-700 hover:bg-slate-50"}`}>
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 group-hover:bg-orange-100 group-hover:text-orange-500">
+                      <User size={21} />
+                    </div>
+
+                    <span className="font-semibold">Login</span>
+                  </div>
+
+                  <ChevronRight size={20} className="text-slate-300" />
+                </Link>
+
+                <Link href="/register" onClick={() => setMobileMenuOpen(false)} className={`group mt-2 flex items-center justify-between rounded-2xl px-4 py-3.5 transition ${pathname.startsWith("/register") || pathname.startsWith("/driver/register") ? "bg-orange-50 text-orange-600" : "text-slate-700 hover:bg-slate-50"}`}>
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-100 text-orange-600"><User size={21} /></div>
+                    <span className="font-semibold">Sign up</span>
+                  </div>
+                  <ChevronRight size={20} className="text-slate-300" />
+                </Link>
+              </>
+            )}
           </div>
         </nav>
 

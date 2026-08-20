@@ -22,4 +22,15 @@ export const initialUsers: User[] = [
     isActive: true,
     createdAt: new Date().toISOString(),
   },
+
+  {
+    id: "user-driver-001",
+    name: "Demo Driver",
+    email: "driver@trucklagbe.com",
+    phone: "01911111111",
+    password: "driver123",
+    role: "driver",
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  },
 ];

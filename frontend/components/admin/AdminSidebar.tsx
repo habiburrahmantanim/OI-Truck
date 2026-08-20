@@ -11,6 +11,8 @@ import {
   X,
 } from "lucide-react";
 
+import { useAuth } from "@/context/AuthContext";
+
 const links = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarDays },
@@ -27,6 +29,7 @@ export default function AdminSidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   return (
     <>
@@ -64,8 +67,13 @@ export default function AdminSidebar({
 
         <div className="border-t border-white/10 p-4">
           <div className="flex items-center gap-3 rounded-lg bg-white/5 p-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-700">AR</span>
-            <div className="min-w-0"><p className="truncate text-sm font-semibold text-white">Admin Rahman</p><p className="text-xs text-slate-500">Administrator</p></div>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-700">
+              {(user?.name ?? "Admin").charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-white">{user?.name ?? "Admin"}</p>
+              <p className="text-xs capitalize text-slate-500">{user?.role ?? "administrator"}</p>
+            </div>
           </div>
         </div>
       </aside>

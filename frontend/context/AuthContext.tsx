@@ -128,18 +128,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
+    // Drivers must be approved by an admin before they can log in.
+    const isActive = userData.role !== "driver";
+
     const newUser: User = {
       ...userData,
       id: `user-${Date.now()}`,
-      isActive: true,
+      isActive,
       createdAt: new Date().toISOString(),
     };
 
     setUsers((previousUsers) => [...previousUsers, newUser]);
 
+    // Auto-login active users (customers/admins). Inactive drivers stay
+    // logged out until an admin approves their account.
+    if (isActive) {
+      setUser(newUser);
+
+      localStorage.setItem("trucklagbe_current_user", JSON.stringify(newUser));
+    }
+
     return {
       success: true,
-      message: "Registration successful.",
+      message: isActive
+        ? "Registration successful."
+        : "Your driver application has been submitted and is pending admin approval.",
       user: newUser,
     };
   }

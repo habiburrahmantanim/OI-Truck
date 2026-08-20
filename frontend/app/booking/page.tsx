@@ -1,601 +1,413 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import {
-  CalendarDays,
-  CheckCircle2,
-  ChevronRight,
-  Clock,
-  MapPin,
-  Package,
-  Phone,
-  Tag,
-  Truck,
-  User,
-  Weight,
-} from "lucide-react";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import Navbar from "@/components/Navbar";
-import { trucks } from "@/data/data";
-import { useBookings } from "@/context/BookingContext";
+import { useBooking } from "@/context/BookingContext";
+import RouteGuard from "@/components/auth/RouteGuard";
 
 export default function BookingPage() {
-  const searchParams = useSearchParams();
-  const { addBooking } = useBookings();
+  return (
+    <RouteGuard role="customer">
+      <BookingContent />
+    </RouteGuard>
+  );
+}
 
-  const truckFromUrl = searchParams.get("truck");
+function BookingContent() {
+  const router = useRouter();
 
-  const initialTruckId = useMemo(() => {
-    const id = Number(truckFromUrl);
+  const { addBooking } = useBooking();
 
-    const truckExists = trucks.some((truck) => truck.id === id);
-
-    return truckExists ? id : (trucks[0]?.id ?? 0);
-  }, [truckFromUrl]);
-
-  const [vehicle, setVehicle] = useState(initialTruckId);
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+
   const [pickupLocation, setPickupLocation] = useState("");
+
   const [deliveryLocation, setDeliveryLocation] = useState("");
-  const [pickupDate, setPickupDate] = useState("");
-  const [pickupTime, setPickupTime] = useState("");
-  const [cargoType, setCargoType] = useState("");
-  const [weight, setWeight] = useState("");
-  const [promoCode, setPromoCode] = useState("");
-  const [promoApplied, setPromoApplied] = useState(false);
-  const [promoMessage, setPromoMessage] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const [bookingId, setBookingId] = useState("");
 
-  useEffect(() => {
-    setVehicle(initialTruckId);
-  }, [initialTruckId]);
+  const [vehicleType, setVehicleType] = useState("Small Truck");
 
-  const selectedTruck = trucks.find((truck) => truck.id === vehicle);
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
 
-  const baseFare = selectedTruck?.price ?? 0;
-  const serviceFee = Math.round(baseFare * 0.05);
+  const [price, setPrice] = useState("5000");
 
-  const discount = promoApplied ? Math.round(baseFare * 0.1) : 0;
+  const [notes, setNotes] = useState("");
 
-  const totalPrice = Math.max(0, baseFare + serviceFee - discount);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  // Converts values like "1 Ton", "2.5 Ton" to KG.
-  const capacityInKg = useMemo(() => {
-    if (!selectedTruck?.capacity) return 0;
-
-    const number = Number(selectedTruck.capacity.replace(/[^0-9.]/g, ""));
-
-    const lowerCapacity = selectedTruck.capacity.toLowerCase();
-
-    if (lowerCapacity.includes("kg")) {
-      return number;
-    }
-
-    return number * 1000;
-  }, [selectedTruck]);
-
-  const weightNumber = Number(weight) || 0;
-
-  const isOverweight =
-    weightNumber > 0 && capacityInKg > 0 && weightNumber > capacityInKg;
-
-  function applyPromoCode() {
-    const code = promoCode.trim().toUpperCase();
-
-    if (!code) {
-      setPromoApplied(false);
-      setPromoMessage("Please enter a promo code.");
-      return;
-    }
-
-    if (code === "TRUCK10") {
-      setPromoApplied(true);
-      setPromoMessage("Promo applied! You received 10% discount.");
-    } else {
-      setPromoApplied(false);
-      setPromoMessage("Invalid promo code.");
-    }
-  }
+  /* =========================================
+     SUBMIT BOOKING
+  ========================================= */
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!selectedTruck) {
-      alert("Please select a truck.");
+    setError("");
+
+    /* -----------------------------
+       VALIDATION
+    ----------------------------- */
+
+    if (!customerName.trim()) {
+      setError("Please enter your name.");
       return;
     }
 
-    if (
-      !customerName.trim() ||
-      !phone.trim() ||
-      !pickupLocation.trim() ||
-      !deliveryLocation.trim() ||
-      !pickupDate ||
-      !pickupTime ||
-      !cargoType.trim() ||
-      !weightNumber
-    ) {
-      alert("Please fill in all required fields.");
+    if (!phone.trim()) {
+      setError("Please enter your phone number.");
       return;
     }
 
-    if (isOverweight) {
-      alert(
-        `Cargo weight exceeds this truck capacity of ${capacityInKg.toLocaleString()} KG.`,
-      );
+    if (!pickupLocation.trim()) {
+      setError("Please enter pickup location.");
       return;
     }
 
-    const newBooking = {
-      id: `TL-${Date.now().toString().slice(-8)}`,
-      bookingId: `TL-${Date.now().toString().slice(-8)}`,
+    if (!deliveryLocation.trim()) {
+      setError("Please enter delivery location.");
+      return;
+    }
+
+    if (!date) {
+      setError("Please select a pickup date.");
+      return;
+    }
+
+    if (!time) {
+      setError("Please select a pickup time.");
+      return;
+    }
+
+    const numericPrice = Number(price);
+
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+      setError("Please enter a valid fare.");
+      return;
+    }
+
+    setSubmitting(true);
+
+    /* =====================================
+       CREATE BOOKING ID
+    ===================================== */
+
+    const bookingId = `BK-${Date.now()}`;
+
+    /* =====================================
+       CREATE BOOKING
+    ===================================== */
+
+    addBooking({
+      id: bookingId,
+
+      bookingId,
 
       customerName: customerName.trim(),
-      phone: phone.trim(),
+
       customerPhone: phone.trim(),
 
+      phone: phone.trim(),
+
+      customerEmail: email.trim() || undefined,
+
       pickupLocation: pickupLocation.trim(),
+
       deliveryLocation: deliveryLocation.trim(),
+
       dropLocation: deliveryLocation.trim(),
 
-      pickupDate,
-      pickupTime,
+      vehicleType,
 
-      cargoType: cargoType.trim(),
-      weight: weightNumber,
+      date,
 
-      truckId: selectedTruck.id,
-      truckName: selectedTruck.name,
-      truckCapacity: selectedTruck.capacity,
+      time,
 
-      baseFare,
-      serviceFee,
-      discount,
-      totalPrice,
-      estimatedFare: totalPrice,
+      price: numericPrice,
 
-      status: "Pending" as const,
+      estimatedFare: numericPrice,
+
+      totalPrice: numericPrice,
+
+      status: "Pending",
+
+      paymentStatus: "Unpaid",
+
+      notes: notes.trim() || undefined,
+
       createdAt: new Date().toISOString(),
-    };
 
-    addBooking(newBooking);
+      updatedAt: new Date().toISOString(),
+    });
 
-    setBookingId(newBooking.id);
-    setSubmitted(true);
-  }
+    /* =====================================
+       GO TO BOOKING DETAILS
+    ===================================== */
 
-  if (submitted) {
-    return (
-      <>
-        <Navbar />
-
-        <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-7 text-center shadow-sm sm:p-10">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-green-600">
-              <CheckCircle2 size={42} />
-            </div>
-
-            <p className="mt-6 text-sm font-bold text-orange-500">
-              BOOKING SUCCESSFUL
-            </p>
-
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">
-              Your Truck Has Been Booked!
-            </h1>
-
-            <p className="mt-4 leading-7 text-slate-500">
-              Your booking request has been created successfully. You can track
-              your delivery using your booking ID.
-            </p>
-
-            <div className="mt-6 rounded-2xl bg-slate-100 p-5">
-              <p className="text-xs font-bold text-slate-400">
-                YOUR BOOKING ID
-              </p>
-
-              <p className="mt-2 text-2xl font-bold text-slate-900">
-                {bookingId}
-              </p>
-            </div>
-
-            <div className="mt-7 grid gap-3 sm:grid-cols-2">
-              <Link
-                href={`/tracking?booking=${bookingId}`}
-                className="rounded-xl bg-slate-900 px-5 py-3.5 font-semibold text-white transition hover:bg-slate-800"
-              >
-                Track Booking
-              </Link>
-
-              <Link
-                href="/bookings"
-                className="rounded-xl bg-orange-500 px-5 py-3.5 font-semibold text-white transition hover:bg-orange-600"
-              >
-                My Bookings
-              </Link>
-            </div>
-          </div>
-        </main>
-      </>
-    );
+    setTimeout(() => {
+      router.push(`/bookings/${bookingId}`);
+    }, 300);
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      <main className="min-h-screen bg-slate-50 py-8 md:py-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          {/* HEADER */}
-          <div className="mb-8">
-            <p className="text-sm font-bold text-orange-500">TRUCK BOOKING</p>
+      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* =================================
+            HEADER
+        ================================= */}
 
-            <h1 className="mt-2 text-3xl font-bold text-slate-900 md:text-4xl">
-              Book Your Truck
-            </h1>
+        <div className="mb-8">
+          <button
+            type="button"
+            onClick={() => router.push("/trucks")}
+            className="mb-4 text-sm font-semibold text-gray-500 hover:text-black"
+          >
+            ← Back to Trucks
+          </button>
 
-            <p className="mt-3 max-w-2xl text-slate-500">
-              Select your truck, enter delivery details and confirm your
-              booking.
-            </p>
+          <h1 className="text-3xl font-bold text-gray-900">Book a Truck</h1>
+
+          <p className="mt-2 text-gray-500">
+            Enter your delivery information to create a booking.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-3">
+          {/* =================================
+              FORM
+          ================================= */}
+
+          <div className="space-y-6 lg:col-span-2">
+            {/* CUSTOMER */}
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900">
+                Customer Information
+              </h2>
+
+              <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                <InputField
+                  label="Full Name"
+                  value={customerName}
+                  onChange={setCustomerName}
+                  placeholder="Enter your full name"
+                  required
+                />
+
+                <InputField
+                  label="Phone Number"
+                  value={phone}
+                  onChange={setPhone}
+                  placeholder="01XXXXXXXXX"
+                  type="tel"
+                  required
+                />
+
+                <div className="sm:col-span-2">
+                  <InputField
+                    label="Email"
+                    value={email}
+                    onChange={setEmail}
+                    placeholder="you@example.com"
+                    type="email"
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* ROUTE */}
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900">
+                Delivery Route
+              </h2>
+
+              <div className="mt-6 space-y-5">
+                <InputField
+                  label="Pickup Location"
+                  value={pickupLocation}
+                  onChange={setPickupLocation}
+                  placeholder="e.g. Dhanmondi, Dhaka"
+                  required
+                />
+
+                <InputField
+                  label="Delivery Location"
+                  value={deliveryLocation}
+                  onChange={setDeliveryLocation}
+                  placeholder="e.g. Uttara, Dhaka"
+                  required
+                />
+              </div>
+            </section>
+
+            {/* VEHICLE */}
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900">Vehicle</h2>
+
+              <div className="mt-6">
+                <label className="text-sm font-semibold text-gray-700">
+                  Vehicle Type
+                </label>
+
+                <select
+                  value={vehicleType}
+                  onChange={(event) => setVehicleType(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black focus:ring-1 focus:ring-black"
+                >
+                  <option value="Small Truck">Small Truck</option>
+
+                  <option value="Medium Truck">Medium Truck</option>
+
+                  <option value="Large Truck">Large Truck</option>
+
+                  <option value="Covered Van">Covered Van</option>
+
+                  <option value="Pickup Truck">Pickup Truck</option>
+                </select>
+              </div>
+            </section>
+
+            {/* SCHEDULE */}
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900">
+                Pickup Schedule
+              </h2>
+
+              <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">
+                    Pickup Date
+                  </label>
+
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(event) => setDate(event.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
+                    className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">
+                    Pickup Time
+                  </label>
+
+                  <input
+                    type="time"
+                    value={time}
+                    onChange={(event) => setTime(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    required
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* NOTES */}
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900">
+                Additional Notes
+              </h2>
+
+              <textarea
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Any special instructions for the driver..."
+                rows={4}
+                className="mt-5 w-full resize-none rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black focus:ring-1 focus:ring-black"
+              />
+            </section>
           </div>
 
-          <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-3">
-            {/* LEFT SIDE */}
-            <div className="space-y-6 lg:col-span-2">
-              <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
-                <SectionTitle
-                  icon={<User size={22} />}
-                  title="Customer Details"
-                  description="Enter your contact information."
+          {/* =================================
+              SUMMARY
+          ================================= */}
+
+          <aside>
+            <div className="sticky top-24 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900">
+                Booking Summary
+              </h2>
+
+              <div className="mt-6 space-y-5">
+                <SummaryItem label="Vehicle" value={vehicleType} />
+
+                <SummaryItem
+                  label="Pickup"
+                  value={pickupLocation || "Not selected"}
                 />
 
-                <div className="mt-6 grid gap-5 sm:grid-cols-2">
-                  <InputField
-                    label="Full Name"
-                    icon={<User size={18} />}
-                    value={customerName}
-                    onChange={setCustomerName}
-                    placeholder="Enter your full name"
-                    required
-                  />
-
-                  <InputField
-                    label="Phone Number"
-                    icon={<Phone size={18} />}
-                    value={phone}
-                    onChange={setPhone}
-                    placeholder="01XXXXXXXXX"
-                    type="tel"
-                    required
-                  />
-                </div>
-              </section>
-
-              <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
-                <SectionTitle
-                  icon={<MapPin size={22} />}
-                  title="Pickup & Delivery"
-                  description="Enter where your cargo will be collected and delivered."
+                <SummaryItem
+                  label="Destination"
+                  value={deliveryLocation || "Not selected"}
                 />
 
-                <div className="mt-6 grid gap-5">
-                  <InputField
-                    label="Pickup Location"
-                    icon={<MapPin size={18} />}
-                    value={pickupLocation}
-                    onChange={setPickupLocation}
-                    placeholder="Example: Dhaka"
-                    required
-                  />
+                <SummaryItem label="Date" value={date || "Not selected"} />
 
-                  <InputField
-                    label="Delivery Location"
-                    icon={<MapPin size={18} />}
-                    value={deliveryLocation}
-                    onChange={setDeliveryLocation}
-                    placeholder="Example: Chattogram"
-                    required
-                  />
-                </div>
-              </section>
+                <SummaryItem label="Time" value={time || "Not selected"} />
 
-              <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
-                <SectionTitle
-                  icon={<CalendarDays size={22} />}
-                  title="Pickup Schedule"
-                  description="Choose your preferred pickup date and time."
-                />
+                <div className="border-t border-gray-100 pt-5">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Estimated Fare
+                  </label>
 
-                <div className="mt-6 grid gap-5 sm:grid-cols-2">
-                  <InputField
-                    label="Pickup Date"
-                    icon={<CalendarDays size={18} />}
-                    value={pickupDate}
-                    onChange={setPickupDate}
-                    type="date"
-                    required
-                  />
+                  <div className="mt-2 flex items-center rounded-xl border border-gray-300">
+                    <span className="px-4 text-gray-500">৳</span>
 
-                  <InputField
-                    label="Pickup Time"
-                    icon={<Clock size={18} />}
-                    value={pickupTime}
-                    onChange={setPickupTime}
-                    type="time"
-                    required
-                  />
-                </div>
-              </section>
-
-              <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-7">
-                <SectionTitle
-                  icon={<Package size={22} />}
-                  title="Cargo Details"
-                  description="Tell us about the goods you want to transport."
-                />
-
-                <div className="mt-6 grid gap-5 sm:grid-cols-2">
-                  <InputField
-                    label="Cargo Type"
-                    icon={<Package size={18} />}
-                    value={cargoType}
-                    onChange={setCargoType}
-                    placeholder="Example: Furniture"
-                    required
-                  />
-
-                  <InputField
-                    label="Estimated Weight (KG)"
-                    icon={<Weight size={18} />}
-                    value={weight}
-                    onChange={setWeight}
-                    placeholder="Example: 500"
-                    type="number"
-                    required
-                  />
-                </div>
-
-                <CapacityWarning
-                  weight={weightNumber}
-                  capacityInKg={capacityInKg}
-                />
-              </section>
-            </div>
-
-            {/* RIGHT SIDE */}
-            <aside className="space-y-6">
-              {selectedTruck && (
-                <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-                  <div className="relative h-44">
-                    <Image
-                      src={selectedTruck.image}
-                      alt={selectedTruck.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 1024px) 100vw, 33vw"
+                    <input
+                      type="number"
+                      min="1"
+                      value={price}
+                      onChange={(event) => setPrice(event.target.value)}
+                      className="w-full rounded-xl px-2 py-3 font-semibold outline-none"
                     />
-
-                    <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
-
-                    <div className="absolute bottom-4 left-4">
-                      <p className="text-sm text-white/80">Selected Truck</p>
-
-                      <h2 className="text-xl font-bold text-white">
-                        {selectedTruck.name}
-                      </h2>
-                    </div>
                   </div>
-
-                  <div className="p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-bold uppercase text-slate-400">
-                          Capacity
-                        </p>
-
-                        <p className="mt-1 font-bold text-slate-800">
-                          {selectedTruck.capacity}
-                        </p>
-                      </div>
-
-                      <span className="rounded-xl bg-orange-100 px-3 py-2 text-sm font-bold text-orange-600">
-                        {selectedTruck.category}
-                      </span>
-                    </div>
-
-                    <p className="mt-4 text-sm leading-6 text-slate-500">
-                      {selectedTruck.description}
-                    </p>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {selectedTruck.idealFor.slice(0, 3).map((item) => (
-                        <span
-                          key={item}
-                          className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600"
-                        >
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              <section className="rounded-2xl bg-white p-5 shadow-sm">
-                <SectionTitle
-                  icon={<Truck size={22} />}
-                  title="Select Truck"
-                  description="Choose the best vehicle."
-                />
-
-                <div className="mt-5 space-y-3">
-                  {trucks.map((truck) => (
-                    <label
-                      key={truck.id}
-                      className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition ${
-                        vehicle === truck.id
-                          ? "border-orange-500 bg-orange-50"
-                          : "border-slate-200 hover:border-orange-300"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="radio"
-                          name="truck"
-                          checked={vehicle === truck.id}
-                          onChange={() => setVehicle(truck.id)}
-                          className="accent-orange-500"
-                        />
-
-                        <div>
-                          <p className="font-bold text-slate-800">
-                            {truck.name}
-                          </p>
-
-                          <p className="text-xs text-slate-500">
-                            {truck.capacity}
-                          </p>
-                        </div>
-                      </div>
-
-                      <p className="font-bold text-orange-500">
-                        ৳{truck.price.toLocaleString()}
-                      </p>
-                    </label>
-                  ))}
-                </div>
-              </section>
-
-              <section className="rounded-2xl bg-white p-5 shadow-sm">
-                <SectionTitle
-                  icon={<Tag size={22} />}
-                  title="Promo Code"
-                  description="Use TRUCK10 for 10% off."
-                />
-
-                <div className="mt-5 flex gap-2">
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={(event) => {
-                      setPromoCode(event.target.value);
-                      setPromoApplied(false);
-                      setPromoMessage("");
-                    }}
-                    placeholder="Promo code"
-                    className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm uppercase outline-none focus:border-orange-500"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={applyPromoCode}
-                    className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white"
-                  >
-                    Apply
-                  </button>
                 </div>
 
-                {promoMessage && (
-                  <p
-                    className={`mt-3 text-sm font-medium ${
-                      promoApplied ? "text-green-600" : "text-red-500"
-                    }`}
-                  >
-                    {promoMessage}
-                  </p>
+                {error && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-600">
+                    {error}
+                  </div>
                 )}
-              </section>
-
-              <section className="sticky top-24 rounded-2xl bg-slate-900 p-5 text-white shadow-sm">
-                <h2 className="text-xl font-bold">Booking Summary</h2>
-
-                <div className="mt-5 space-y-4 text-sm">
-                  <SummaryRow
-                    label="Truck"
-                    value={selectedTruck?.name ?? "-"}
-                  />
-
-                  <SummaryRow
-                    label="Capacity"
-                    value={selectedTruck?.capacity ?? "-"}
-                  />
-
-                  <SummaryRow
-                    label="Base Fare"
-                    value={`৳${baseFare.toLocaleString()}`}
-                  />
-
-                  <SummaryRow
-                    label="Service Fee (5%)"
-                    value={`৳${serviceFee.toLocaleString()}`}
-                  />
-
-                  {discount > 0 && (
-                    <SummaryRow
-                      label="Discount"
-                      value={`-৳${discount.toLocaleString()}`}
-                      highlight
-                    />
-                  )}
-
-                  <div className="border-t border-slate-700 pt-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold">Total</span>
-
-                      <span className="text-2xl font-bold text-orange-400">
-                        ৳{totalPrice.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
                 <button
                   type="submit"
-                  disabled={isOverweight}
-                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-4 font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={submitting}
+                  className="w-full rounded-xl bg-black px-5 py-4 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Confirm Booking
-                  <ChevronRight size={20} />
+                  {submitting ? "Creating Booking..." : "Confirm Booking"}
                 </button>
-              </section>
-            </aside>
-          </form>
-        </div>
+
+                <p className="text-center text-xs leading-5 text-gray-400">
+                  You can pay for your booking after it has been created.
+                </p>
+              </div>
+            </div>
+          </aside>
+        </form>
       </main>
-    </>
-  );
-}
-
-function SectionTitle({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="rounded-xl bg-orange-100 p-3 text-orange-500">{icon}</div>
-
-      <div>
-        <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
-      </div>
     </div>
   );
 }
 
+/* ============================================
+   INPUT FIELD
+============================================ */
+
 function InputField({
   label,
-  icon,
   value,
   onChange,
   placeholder,
@@ -603,7 +415,6 @@ function InputField({
   required = false,
 }: {
   label: string;
-  icon: React.ReactNode;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -611,84 +422,34 @@ function InputField({
   required?: boolean;
 }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-bold text-slate-700">
-        {label}
-        {required && <span className="ml-1 text-red-500">*</span>}
-      </span>
+    <div>
+      <label className="text-sm font-semibold text-gray-700">{label}</label>
 
-      <div className="relative">
-        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-          {icon}
-        </span>
-
-        <input
-          type={type}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
-          required={required}
-          min={type === "number" ? "1" : undefined}
-          className="w-full rounded-xl border border-slate-200 py-3.5 pl-11 pr-4 text-sm outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
-        />
-      </div>
-    </label>
-  );
-}
-
-function SummaryRow({
-  label,
-  value,
-  highlight = false,
-}: {
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-slate-400">{label}</span>
-
-      <span
-        className={
-          highlight ? "font-bold text-green-400" : "font-semibold text-white"
-        }
-      >
-        {value}
-      </span>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        required={required}
+        className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-black focus:ring-1 focus:ring-black"
+      />
     </div>
   );
 }
 
-function CapacityWarning({
-  weight,
-  capacityInKg,
-}: {
-  weight: number;
-  capacityInKg: number;
-}) {
-  if (!weight || weight <= 0 || !capacityInKg) {
-    return null;
-  }
+/* ============================================
+   SUMMARY ITEM
+============================================ */
 
-  const isOverweight = weight > capacityInKg;
-
+function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      className={`mt-5 rounded-xl border p-4 text-sm ${
-        isOverweight
-          ? "border-red-200 bg-red-50 text-red-700"
-          : "border-green-200 bg-green-50 text-green-700"
-      }`}
-    >
-      <strong>
-        {isOverweight
-          ? "Weight exceeds truck capacity."
-          : "Weight is within truck capacity."}
-      </strong>
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+        {label}
+      </p>
 
-      <p className="mt-1">
-        Maximum capacity: {capacityInKg.toLocaleString()} KG.
+      <p className="mt-1 break-words text-sm font-semibold text-gray-900">
+        {value}
       </p>
     </div>
   );

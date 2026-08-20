@@ -15,8 +15,19 @@ import {
 
 import Navbar from "@/components/Navbar";
 import { useBooking, type Booking } from "@/context/BookingContext";
+import { useAuth } from "@/context/AuthContext";
+import RouteGuard from "@/components/auth/RouteGuard";
 
 export default function ProfilePage() {
+  return (
+    <RouteGuard role="customer">
+      <ProfileContent />
+    </RouteGuard>
+  );
+}
+
+function ProfileContent() {
+  const { user } = useAuth();
   const { bookings } = useBooking();
 
   const totalBookings = bookings.length;
@@ -82,10 +93,12 @@ export default function ProfilePage() {
 
               <div className="flex-1">
                 <p className="text-sm font-medium text-orange-400">
-                  TRUCKLAGBE CUSTOMER
+                  TRUCKLAGBE {(user?.role ?? "customer").toUpperCase()}
                 </p>
 
-                <h2 className="mt-1 text-2xl font-bold">Welcome Back!</h2>
+                <h2 className="mt-1 text-2xl font-bold">
+                  Welcome back, {user?.name ?? "there"}!
+                </h2>
 
                 <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
                   Track your deliveries, manage your bookings and view your
@@ -318,20 +331,16 @@ export default function ProfilePage() {
                   </h2>
 
                   <p className="text-sm text-slate-500">
-                    Your account details will appear here.
+                    Your TruckLagbe account details.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-6 rounded-xl bg-slate-50 p-5">
-                <p className="text-sm text-slate-500">
-                  Account system is currently frontend-based.
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  User authentication and profile editing can be added when you
-                  connect your backend.
-                </p>
+              <div className="mt-6 space-y-3">
+                <InfoRow label="Name" value={user?.name} />
+                <InfoRow label="Email" value={user?.email} />
+                <InfoRow label="Phone" value={user?.phone} />
+                <InfoRow label="Account type" value={user?.role} />
               </div>
             </div>
 
@@ -444,5 +453,17 @@ function StatusBadge({ status }: { status: string }) {
     >
       {status}
     </span>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-4 py-3">
+      <span className="text-sm font-medium text-slate-500">{label}</span>
+
+      <span className="truncate text-sm font-semibold text-slate-800">
+        {value || "Not provided"}
+      </span>
+    </div>
   );
 }

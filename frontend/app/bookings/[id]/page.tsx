@@ -1,29 +1,72 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+
 import Navbar from "@/components/Navbar";
 import { useBooking } from "@/context/BookingContext";
+import { BookingStatus } from "@/types/booking";
+import RouteGuard from "@/components/auth/RouteGuard";
 
 export default function BookingDetailsPage() {
+  return (
+    <RouteGuard role="customer">
+      <BookingDetailsContent />
+    </RouteGuard>
+  );
+}
+
+function BookingDetailsContent() {
   const router = useRouter();
   const params = useParams();
 
-  const { bookings, cancelBooking } = useBooking();
+  const { bookings, isLoaded, cancelBooking } = useBooking();
 
-  const bookingId = Array.isArray(params.id) ? params.id[0] : String(params.id);
+  const [bookingId, setBookingId] = useState("");
 
-  const booking = bookings.find((item) => String(item.id) === bookingId);
+  useEffect(() => {
+    if (!params?.id) return;
 
-  /* --------------------------------
-     BOOKING NOT FOUND
-  -------------------------------- */
+    const id = Array.isArray(params.id) ? params.id[0] : String(params.id);
+
+    setBookingId(id);
+  }, [params]);
+
+  const booking = bookings.find(
+    (item) =>
+      String(item.id) === bookingId || String(item.bookingId) === bookingId,
+  );
+
+  /* =========================================
+     LOADING
+  ========================================= */
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+
+        <main className="mx-auto max-w-4xl px-4 py-16">
+          <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-black" />
+
+            <p className="mt-4 text-sm text-gray-500">Loading booking...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  /* =========================================
+     NOT FOUND
+  ========================================= */
 
   if (!booking) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
 
-        <main className="mx-auto max-w-3xl px-4 py-16">
+        <main className="mx-auto max-w-2xl px-4 py-16">
           <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">
               🚚
@@ -34,12 +77,12 @@ export default function BookingDetailsPage() {
             </h1>
 
             <p className="mt-2 text-gray-500">
-              We could not find this booking.
+              We couldn't find booking #{bookingId}.
             </p>
 
             <button
               onClick={() => router.push("/bookings")}
-              className="mt-6 rounded-xl bg-black px-6 py-3 font-semibold text-white transition hover:bg-gray-800"
+              className="mt-6 rounded-xl bg-black px-6 py-3 font-semibold text-white hover:bg-gray-800"
             >
               Back to My Bookings
             </button>
@@ -49,106 +92,99 @@ export default function BookingDetailsPage() {
     );
   }
 
-  /* --------------------------------
-     STATUS HELPERS
-  -------------------------------- */
+  const price = Number(booking.price || 0);
 
-  const normalizedStatus = String(booking.status).toLowerCase();
+  const isPaid = booking.paymentStatus === "Paid";
 
-  const isCancelled = normalizedStatus === "cancelled";
+  const canTrack =
+    booking.status === "Confirmed" ||
+    booking.status === "Accepted" ||
+    booking.status === "In Transit";
 
-  const isCompleted = normalizedStatus === "completed";
+  const canCancel =
+    booking.status === "Pending" || booking.status === "Confirmed";
 
-  const isConfirmed =
-    normalizedStatus === "confirmed" || normalizedStatus === "accepted";
-
-  const isInTransit =
-    normalizedStatus === "in-transit" ||
-    normalizedStatus === "in transit" ||
-    normalizedStatus === "in_progress" ||
-    normalizedStatus === "in progress";
-
-  const canTrack = !isCancelled && !isCompleted && (isConfirmed || isInTransit);
-
-  const canCancel = !isCancelled && !isCompleted;
-
-  /* --------------------------------
-     CANCEL BOOKING
-  -------------------------------- */
+  /* =========================================
+     CANCEL
+  ========================================= */
 
   function handleCancel() {
     const confirmed = window.confirm(
       "Are you sure you want to cancel this booking?",
     );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     cancelBooking(booking.id);
-
-    alert("Booking cancelled successfully.");
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Back Button */}
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* =====================================
+            HEADER
+        ===================================== */}
 
-        <button
-          onClick={() => router.push("/bookings")}
-          className="mb-6 flex items-center gap-2 text-sm font-semibold text-gray-600 transition hover:text-black"
-        >
-          ← Back to My Bookings
-        </button>
+        <div className="mb-8">
+          <button
+            onClick={() => router.push("/bookings")}
+            className="mb-5 text-sm font-semibold text-gray-500 hover:text-black"
+          >
+            ← Back to My Bookings
+          </button>
 
-        {/* Header */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Booking Details</p>
 
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm text-gray-500">Booking ID</p>
+              <h1 className="mt-1 text-3xl font-bold text-gray-900">
+                #{booking.id}
+              </h1>
+            </div>
 
-            <h1 className="mt-1 text-3xl font-bold text-gray-900">
-              #{booking.id}
-            </h1>
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              <BookingStatus status={booking.status} />
+
+              <PaymentBadge status={booking.paymentStatus ?? "Unpaid"} />
+            </div>
           </div>
-
-          <BookingStatus status={booking.status} />
         </div>
-
-        {/* Main Grid */}
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* =====================================
-              LEFT COLUMN
+              MAIN CONTENT
           ===================================== */}
 
           <div className="space-y-6 lg:col-span-2">
-            {/* Trip Information */}
+            {/* =================================
+                ROUTE
+            ================================= */}
 
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="text-xl font-bold text-gray-900">
-                Trip Information
+                Delivery Route
               </h2>
 
-              <div className="mt-6">
+              <div className="mt-7 space-y-6">
                 {/* Pickup */}
 
                 <div className="flex gap-4">
                   <div className="flex flex-col items-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-green-700">
-                      <span className="text-lg">●</span>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-lg">
+                      📍
                     </div>
 
-                    <div className="h-12 w-px bg-gray-200" />
+                    <div className="mt-2 h-12 w-px bg-gray-200" />
                   </div>
 
-                  <div className="pb-6">
-                    <p className="text-sm text-gray-500">Pickup Location</p>
+                  <div className="pt-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Pickup Location
+                    </p>
 
-                    <p className="mt-1 text-lg font-semibold text-gray-900">
+                    <p className="mt-1 font-semibold text-gray-900">
                       {booking.pickupLocation}
                     </p>
                   </div>
@@ -157,14 +193,16 @@ export default function BookingDetailsPage() {
                 {/* Destination */}
 
                 <div className="flex gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-700">
-                    <span className="text-lg">●</span>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-lg">
+                    🏁
                   </div>
 
-                  <div>
-                    <p className="text-sm text-gray-500">Delivery Location</p>
+                  <div className="pt-1">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Destination
+                    </p>
 
-                    <p className="mt-1 text-lg font-semibold text-gray-900">
+                    <p className="mt-1 font-semibold text-gray-900">
                       {booking.deliveryLocation}
                     </p>
                   </div>
@@ -172,161 +210,244 @@ export default function BookingDetailsPage() {
               </div>
             </section>
 
-            {/* Vehicle Information */}
+            {/* =================================
+                VEHICLE
+            ================================= */}
 
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="text-xl font-bold text-gray-900">
                 Vehicle Information
               </h2>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                <InfoCard
-                  label="Vehicle Type"
-                  value={String(booking.vehicleType)}
+              <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                <InfoItem label="Vehicle Type" value={booking.vehicleType} />
+
+                <InfoItem
+                  label="Vehicle Name"
+                  value={booking.vehicleName || booking.vehicleType}
                 />
 
-                <InfoCard label="Booking ID" value={`#${booking.id}`} />
-
-                <InfoCard
-                  label="Pickup"
-                  value={String(booking.pickupLocation)}
+                <InfoItem
+                  label="Truck Number"
+                  value={booking.truckNumber || "Not assigned"}
                 />
 
-                <InfoCard
-                  label="Destination"
-                  value={String(booking.deliveryLocation)}
+                <InfoItem
+                  label="Capacity"
+                  value={booking.truckCapacity || "Not specified"}
                 />
               </div>
             </section>
 
-            {/* Booking Status */}
+            {/* =================================
+                SCHEDULE
+            ================================= */}
+
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900">Schedule</h2>
+
+              <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                <InfoItem
+                  label="Pickup Date"
+                  value={booking.date || "Not specified"}
+                />
+
+                <InfoItem
+                  label="Pickup Time"
+                  value={booking.time || "Not specified"}
+                />
+              </div>
+            </section>
+
+            {/* =================================
+                CUSTOMER
+            ================================= */}
 
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="text-xl font-bold text-gray-900">
-                Booking Status
+                Customer Information
               </h2>
 
-              <div className="mt-6">
-                <StatusTimeline status={String(booking.status)} />
+              <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                <InfoItem
+                  label="Name"
+                  value={booking.customerName || "Not provided"}
+                />
+
+                <InfoItem
+                  label="Phone"
+                  value={
+                    booking.customerPhone || booking.phone || "Not provided"
+                  }
+                />
+
+                <InfoItem
+                  label="Email"
+                  value={booking.customerEmail || "Not provided"}
+                />
               </div>
             </section>
+
+            {/* =================================
+                DRIVER
+            ================================= */}
+
+            {(booking.driverName || booking.driverPhone) && (
+              <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Driver Information
+                </h2>
+
+                <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                  <InfoItem
+                    label="Driver"
+                    value={booking.driverName || "Not assigned"}
+                  />
+
+                  <InfoItem
+                    label="Phone"
+                    value={booking.driverPhone || "Not available"}
+                  />
+                </div>
+              </section>
+            )}
+
+            {/* =================================
+                NOTES
+            ================================= */}
+
+            {booking.notes && (
+              <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Additional Notes
+                </h2>
+
+                <p className="mt-4 leading-7 text-gray-600">{booking.notes}</p>
+              </section>
+            )}
           </div>
 
           {/* =====================================
-              RIGHT COLUMN
+              SIDEBAR
           ===================================== */}
 
           <aside className="space-y-6">
-            {/* Fare Summary */}
+            {/* =================================
+                FARE
+            ================================= */}
 
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-bold text-gray-900">Fare Summary</h2>
 
               <div className="mt-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Truck Fare</span>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Estimated Fare</span>
 
-                  <span className="font-semibold text-gray-900">
-                    ৳{Number(booking.price).toLocaleString()}
+                  <span className="font-semibold">
+                    ৳{Number(booking.estimatedFare || price).toLocaleString()}
                   </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Total Fare</span>
+
+                  {booking.paymentStatus === "Paid" ? (
+                    <span className="font-bold text-green-600">✓ Paid</span>
+                  ) : (
+                    <span className="font-bold">৳{price.toLocaleString()}</span>
+                  )}
                 </div>
 
                 <div className="border-t border-gray-100 pt-4">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-gray-900">Total</span>
+                    <span className="font-bold text-gray-900">Total</span>
 
                     <span className="text-2xl font-bold text-gray-900">
-                      ৳{Number(booking.price).toLocaleString()}
+                      ৳{price.toLocaleString()}
                     </span>
                   </div>
                 </div>
               </div>
             </section>
 
-            {/* Current Status */}
+            {/* =================================
+                PAYMENT
+            ================================= */}
 
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-gray-900">
-                Current Status
-              </h2>
+              <h2 className="text-lg font-bold text-gray-900">Payment</h2>
 
-              <div className="mt-4">
-                <BookingStatus status={booking.status} />
+              <div className="mt-5">
+                <PaymentBadge status={booking.paymentStatus ?? "Unpaid"} />
               </div>
-            </section>
 
-            {/* Track Truck */}
+              {booking.paymentMethod && (
+                <div className="mt-4">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">
+                    Method
+                  </p>
 
-            {canTrack && (
-              <section className="rounded-2xl bg-black p-6 text-white shadow-sm">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl">
-                  📍
+                  <p className="mt-1 font-semibold text-gray-900">
+                    {booking.paymentMethod}
+                  </p>
                 </div>
+              )}
 
-                <h2 className="mt-4 text-lg font-bold">Track Your Truck</h2>
+              {booking.paymentId && (
+                <div className="mt-4">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">
+                    Payment ID
+                  </p>
 
-                <p className="mt-2 text-sm leading-6 text-gray-300">
-                  Track your truck and monitor your delivery progress in real
-                  time.
-                </p>
+                  <p className="mt-1 break-all text-sm font-semibold text-gray-900">
+                    {booking.paymentId}
+                  </p>
+                </div>
+              )}
 
-                <button
-                  onClick={() => router.push(`/tracking/${booking.id}`)}
-                  className="mt-5 w-full rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-gray-100"
-                >
-                  Track Truck
-                </button>
-              </section>
-            )}
-
-            {/* Payment */}
-
-            {!isCancelled && (
-              <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-gray-900">Payment</h2>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  Complete payment for this booking.
-                </p>
-
+              {!isPaid && booking.status !== "Cancelled" && (
                 <button
                   onClick={() => router.push(`/payment/${booking.id}`)}
-                  className="mt-5 w-full rounded-xl bg-black px-5 py-3 font-semibold text-white transition hover:bg-gray-800"
+                  className="mt-6 w-full rounded-xl bg-green-600 px-5 py-3 font-semibold text-white transition hover:bg-green-700"
                 >
-                  Make Payment
+                  Pay Now
                 </button>
-              </section>
-            )}
+              )}
 
-            {/* Cancel Booking */}
+              {isPaid && (
+                <div className="mt-6 rounded-xl bg-green-50 p-4 text-sm font-medium text-green-700">
+                  ✓ Payment completed successfully.
+                </div>
+              )}
+            </section>
 
-            {canCancel && (
-              <section className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-gray-900">
-                  Cancel Booking
-                </h2>
+            {/* =================================
+                ACTIONS
+            ================================= */}
 
-                <p className="mt-2 text-sm leading-6 text-gray-500">
-                  You can cancel this booking if you no longer need the truck.
-                </p>
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-gray-900">Actions</h2>
 
-                <button
-                  onClick={handleCancel}
-                  className="mt-5 w-full rounded-xl border border-red-300 px-5 py-3 font-semibold text-red-600 transition hover:bg-red-50"
-                >
-                  Cancel Booking
-                </button>
-              </section>
-            )}
+              <div className="mt-5 space-y-3">
+                {canTrack && (
+                  <button
+                    onClick={() => router.push(`/tracking/${booking.id}`)}
+                    className="w-full rounded-xl bg-black px-5 py-3 font-semibold text-white transition hover:bg-gray-800"
+                  >
+                    🚚 Track Truck
+                  </button>
+                )}
 
-            {/* Back */}
-
-            <button
-              onClick={() => router.push("/bookings")}
-              className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3 font-semibold text-gray-800 transition hover:bg-gray-50"
-            >
-              View All Bookings
-            </button>
+                {canCancel && (
+                  <button
+                    onClick={handleCancel}
+                    className="w-full rounded-xl border border-red-200 px-5 py-3 font-semibold text-red-600 transition hover:bg-red-50"
+                  >
+                    Cancel Booking
+                  </button>
+                )}
+              </div>
+            </section>
           </aside>
         </div>
       </main>
@@ -335,189 +456,123 @@ export default function BookingDetailsPage() {
 }
 
 /* ============================================
+   INFO ITEM
+============================================ */
+
+function InfoItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+        {label}
+      </p>
+
+      <p className="mt-1 break-words font-semibold text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+/* ============================================
    BOOKING STATUS
 ============================================ */
 
-function BookingStatus({ status }: { status: string }) {
-  const normalizedStatus = status.toLowerCase();
+function BookingStatus({ status }: { status: BookingStatus }) {
+  const config: Record<
+    BookingStatus,
+    {
+      label: string;
+      className: string;
+    }
+  > = {
+    Pending: {
+      label: "Pending",
+      className: "bg-yellow-100 text-yellow-800",
+    },
 
-  const statusConfig: Record<
+    Confirmed: {
+      label: "Confirmed",
+      className: "bg-blue-100 text-blue-800",
+    },
+
+    Accepted: {
+      label: "Accepted",
+      className: "bg-indigo-100 text-indigo-800",
+    },
+
+    "In Transit": {
+      label: "In Transit",
+      className: "bg-purple-100 text-purple-800",
+    },
+
+    Completed: {
+      label: "Completed",
+      className: "bg-green-100 text-green-800",
+    },
+
+    Cancelled: {
+      label: "Cancelled",
+      className: "bg-red-100 text-red-800",
+    },
+  };
+
+  const item = config[status];
+
+  return (
+    <span
+      className={`inline-flex rounded-full px-4 py-2 text-xs font-semibold ${item.className}`}
+    >
+      {item.label}
+    </span>
+  );
+}
+
+/* ============================================
+   PAYMENT BADGE
+============================================ */
+
+function PaymentBadge({ status }: { status: string }) {
+  const config: Record<
     string,
     {
       label: string;
       className: string;
     }
   > = {
-    pending: {
-      label: "Pending",
+    Unpaid: {
+      label: "Payment Unpaid",
+      className: "bg-orange-100 text-orange-800",
+    },
+
+    Pending: {
+      label: "Payment Pending",
       className: "bg-yellow-100 text-yellow-800",
     },
 
-    confirmed: {
-      label: "Confirmed",
-      className: "bg-blue-100 text-blue-800",
-    },
-
-    accepted: {
-      label: "Accepted",
-      className: "bg-blue-100 text-blue-800",
-    },
-
-    "in-transit": {
-      label: "In Transit",
-      className: "bg-purple-100 text-purple-800",
-    },
-
-    "in transit": {
-      label: "In Transit",
-      className: "bg-purple-100 text-purple-800",
-    },
-
-    "in progress": {
-      label: "In Progress",
-      className: "bg-purple-100 text-purple-800",
-    },
-
-    completed: {
-      label: "Completed",
+    Paid: {
+      label: "Payment Paid",
       className: "bg-green-100 text-green-800",
     },
 
-    cancelled: {
-      label: "Cancelled",
+    Failed: {
+      label: "Payment Failed",
       className: "bg-red-100 text-red-800",
+    },
+
+    Refunded: {
+      label: "Refunded",
+      className: "bg-gray-100 text-gray-700",
     },
   };
 
-  const config = statusConfig[normalizedStatus] ?? {
+  const item = config[status] ?? {
     label: status,
-    className: "bg-gray-100 text-gray-800",
+    className: "bg-gray-100 text-gray-700",
   };
 
   return (
     <span
-      className={`inline-flex w-fit rounded-full px-4 py-2 text-sm font-semibold ${config.className}`}
+      className={`inline-flex rounded-full px-4 py-2 text-xs font-semibold ${item.className}`}
     >
-      {config.label}
+      {item.label}
     </span>
-  );
-}
-
-/* ============================================
-   STATUS TIMELINE
-============================================ */
-
-function StatusTimeline({ status }: { status: string }) {
-  const normalizedStatus = status.toLowerCase();
-
-  if (normalizedStatus === "cancelled") {
-    return (
-      <div className="flex gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 font-bold text-red-600">
-          ✕
-        </div>
-
-        <div>
-          <h3 className="font-semibold text-red-600">Booking Cancelled</h3>
-
-          <p className="mt-1 text-sm text-gray-500">
-            This booking has been cancelled.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const confirmed =
-    normalizedStatus === "confirmed" ||
-    normalizedStatus === "accepted" ||
-    normalizedStatus === "in-transit" ||
-    normalizedStatus === "in transit" ||
-    normalizedStatus === "in progress" ||
-    normalizedStatus === "completed";
-
-  const inTransit =
-    normalizedStatus === "in-transit" ||
-    normalizedStatus === "in transit" ||
-    normalizedStatus === "in progress" ||
-    normalizedStatus === "completed";
-
-  const completed = normalizedStatus === "completed";
-
-  const steps = [
-    {
-      title: "Booking Created",
-      description: "Your booking request has been created.",
-      active: true,
-    },
-    {
-      title: "Booking Confirmed",
-      description: "Your booking has been accepted.",
-      active: confirmed,
-    },
-    {
-      title: "Trip Started",
-      description: "The truck is on its way.",
-      active: inTransit,
-    },
-    {
-      title: "Completed",
-      description: "Your delivery has been completed.",
-      active: completed,
-    },
-  ];
-
-  return (
-    <div className="space-y-6">
-      {steps.map((step, index) => (
-        <div key={step.title} className="flex gap-4">
-          <div className="flex flex-col items-center">
-            <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                step.active
-                  ? "bg-black text-white"
-                  : "bg-gray-100 text-gray-400"
-              }`}
-            >
-              {step.active ? "✓" : index + 1}
-            </div>
-
-            {index < steps.length - 1 && (
-              <div
-                className={`mt-2 h-8 w-px ${
-                  step.active ? "bg-black" : "bg-gray-200"
-                }`}
-              />
-            )}
-          </div>
-
-          <div>
-            <h3
-              className={`font-semibold ${
-                step.active ? "text-gray-900" : "text-gray-400"
-              }`}
-            >
-              {step.title}
-            </h3>
-
-            <p className="mt-1 text-sm text-gray-500">{step.description}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ============================================
-   INFO CARD
-============================================ */
-
-function InfoCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-gray-50 p-4">
-      <p className="text-sm text-gray-500">{label}</p>
-
-      <p className="mt-1 break-words font-semibold text-gray-900">{value}</p>
-    </div>
   );
 }
