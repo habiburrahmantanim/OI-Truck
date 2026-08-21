@@ -1,161 +1,170 @@
 "use client";
 
 import Link from "next/link";
-import { Lock, Mail, Phone, Truck, UserRound } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
+import { Mail, Phone, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
-import { dashboardFor } from "@/components/auth/RouteGuard";
 
 export default function CustomerRegisterPage() {
   const router = useRouter();
-  const { register, user, isLoaded } = useAuth();
+  const { register } = useAuth();
 
-  const [message, setMessage] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Bounce already-authenticated users to their dashboard.
-  useEffect(() => {
-    if (isLoaded && user) {
-      router.replace(dashboardFor(user.role));
-    }
-  }, [isLoaded, user, router]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-    setMessage("");
-    setSubmitting(true);
+    setError("");
 
-    const form = new FormData(e.currentTarget);
-
-    const result = register({
-      name: String(form.get("name") || "").trim(),
-      email: String(form.get("email") || "").trim(),
-      phone: String(form.get("phone") || "").trim(),
-      password: String(form.get("password") || ""),
-      role: "customer",
-    });
-
-    if (!result.success) {
-      setMessage(result.message || "Registration failed. Please try again.");
-      setSubmitting(false);
+    if (!name.trim() || !email.trim() || !phone.trim() || !password) {
+      setError("Please complete all fields.");
       return;
     }
 
-    // Customers are auto-logged-in by register(); go straight to the dashboard.
-    router.replace("/dashboard");
+    if (password.length < 6) {
+      setError("Password must contain at least 6 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+
+    const result = register({
+      name,
+      email,
+      phone,
+      password,
+      role: "customer",
+    });
+
+    setLoading(false);
+
+    if (!result.success) {
+      setError(result.message || "Registration failed.");
+      return;
+    }
+
+    router.push("/login?registered=customer");
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-5">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-sm sm:p-8">
-        <Link
-          href="/register"
-          className="flex items-center gap-2 text-lg font-bold text-slate-900"
-        >
-          <span className="rounded-lg bg-orange-500 p-2 text-white">
-            <Truck size={19} />
-          </span>
-          Truck<span className="text-orange-500">Lagbe</span>
-        </Link>
+    <>
+      <Navbar />
 
-        <p className="mt-8 text-sm font-semibold text-orange-600">
-          CUSTOMER ACCOUNT
-        </p>
+      <main className="min-h-screen bg-slate-50 px-4 py-10">
+        <div className="mx-auto max-w-lg">
+          <div className="rounded-2xl bg-white p-6 shadow-sm sm:p-8">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-100 text-orange-600">
+              <UserRound size={28} />
+            </div>
 
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">
-          Create your account
-        </h1>
+            <p className="mt-6 text-sm font-semibold text-orange-600">
+              CUSTOMER ACCOUNT
+            </p>
 
-        <p className="mt-3 text-slate-500">
-          Save your details to book and manage deliveries.
-        </p>
+            <h1 className="mt-2 text-3xl font-bold text-slate-900">
+              Create your account
+            </h1>
 
-        {message && (
-          <div className="mt-6 rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {message}
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Start booking trucks and managing your deliveries.
+            </p>
+
+            {error && (
+              <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+              <Field
+                label="Full Name"
+                icon={<UserRound size={18} />}
+                value={name}
+                onChange={setName}
+                placeholder="Enter your full name"
+              />
+
+              <Field
+                label="Email Address"
+                type="email"
+                icon={<Mail size={18} />}
+                value={email}
+                onChange={setEmail}
+                placeholder="you@example.com"
+              />
+
+              <Field
+                label="Phone Number"
+                type="tel"
+                icon={<Phone size={18} />}
+                value={phone}
+                onChange={setPhone}
+                placeholder="01XXXXXXXXX"
+              />
+
+              <PasswordField
+                label="Password"
+                value={password}
+                onChange={setPassword}
+              />
+
+              <PasswordField
+                label="Confirm Password"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+              />
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-xl bg-orange-500 px-5 py-3.5 font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Creating Account..." : "Create Customer Account"}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-slate-500">
+              Already have an account?{" "}
+              <Link href="/login" className="font-semibold text-orange-600">
+                Login
+              </Link>
+            </p>
           </div>
-        )}
-
-        <form onSubmit={submit} className="mt-8 space-y-5">
-          <Input
-            name="name"
-            label="Full name"
-            icon={<UserRound size={19} />}
-            placeholder="Your full name"
-          />
-
-          <Input
-            name="phone"
-            label="Phone number"
-            type="tel"
-            icon={<Phone size={19} />}
-            placeholder="+880 1XXX-XXXXXX"
-          />
-
-          <Input
-            name="email"
-            label="Email address"
-            type="email"
-            icon={<Mail size={19} />}
-            placeholder="you@example.com"
-          />
-
-          <Input
-            name="password"
-            label="Password"
-            type="password"
-            icon={<Lock size={19} />}
-            placeholder="At least 8 characters"
-            minLength={8}
-          />
-
-          <label className="flex items-start gap-2 text-sm text-slate-500">
-            <input
-              required
-              type="checkbox"
-              className="mt-1 h-4 w-4 accent-orange-500"
-            />
-            I agree to the Terms of Service and Privacy Policy.
-          </label>
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-orange-500 py-3.5 font-semibold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {submitting ? "Creating account..." : "Create account"}
-            <Truck size={19} />
-          </button>
-        </form>
-
-        <p className="mt-7 text-center text-sm text-slate-500">
-          Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-orange-600">
-            Log in
-          </Link>
-        </p>
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   );
 }
 
-function Input({
-  name,
+function Field({
   label,
-  type = "text",
   icon,
+  value,
+  onChange,
   placeholder,
-  minLength,
+  type = "text",
 }: {
-  name: string;
   label: string;
-  type?: string;
   icon: React.ReactNode;
+  value: string;
+  onChange: (value: string) => void;
   placeholder: string;
-  minLength?: number;
+  type?: string;
 }) {
   return (
     <label className="block">
@@ -163,17 +172,46 @@ function Input({
         {label}
       </span>
 
-      <span className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-3 text-slate-400 focus-within:border-orange-500">
-        {icon}
+      <div className="relative">
+        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+          {icon}
+        </span>
+
         <input
-          required
-          name={name}
           type={type}
-          minLength={minLength}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="w-full text-sm text-slate-800 outline-none"
+          required
+          className="w-full rounded-xl border border-slate-200 py-3 pl-11 pr-4 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
         />
+      </div>
+    </label>
+  );
+}
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold text-slate-700">
+        {label}
       </span>
+
+      <input
+        type="password"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required
+        className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+      />
     </label>
   );
 }

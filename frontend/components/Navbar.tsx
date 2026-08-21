@@ -1,399 +1,372 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  CalendarDays,
-  ChevronRight,
-  Home,
+  ChevronDown,
+  LayoutDashboard,
+  LogIn,
   LogOut,
   Menu,
-  Search,
+  Package,
   Truck,
   User,
+  UserPlus,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 
 import { useAuth } from "@/context/AuthContext";
-import { dashboardFor } from "@/components/auth/RouteGuard";
-
-const navLinks = [
-  {
-    name: "Home",
-    href: "/",
-    icon: Home,
-  },
-  {
-    name: "Trucks",
-    href: "/trucks",
-    icon: Truck,
-  },
-  {
-    name: "My Bookings",
-    href: "/bookings",
-    icon: CalendarDays,
-  },
-  {
-    name: "Track Booking",
-    href: "/tracking",
-    icon: Search,
-  },
-  {
-    name: "Profile",
-    href: "/profile",
-    icon: User,
-  },
-];
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isLoaded, logout } = useAuth();
+
+  const { user, logout, isLoaded } = useAuth();
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setProfileOpen(false);
+  }, [pathname]);
 
   function handleLogout() {
     logout();
+    setProfileOpen(false);
     setMobileMenuOpen(false);
     router.push("/");
   }
 
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
-  };
+  function getDashboardLink() {
+    if (!user) return "/";
 
-  // Close mobile menu when changing page
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
+    if (user.role === "admin") return "/admin";
+    if (user.role === "driver") return "/driver";
 
-  // Close with Escape key
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMobileMenuOpen(false);
-      }
-    };
+    return "/bookings";
+  }
 
-    window.addEventListener("keydown", handleKeyDown);
+  function getDashboardLabel() {
+    if (!user) return "";
 
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+    if (user.role === "admin") return "Admin Panel";
+    if (user.role === "driver") return "Driver Panel";
 
-  // Prevent background scrolling while menu is open
-  useEffect(() => {
-    if (mobileMenuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+    return "My Bookings";
+  }
+
+  const customerLinks = [
+    { label: "Home", href: "/" },
+    { label: "Trucks", href: "/trucks" },
+    { label: "Book Truck", href: "/booking" },
+    { label: "My Bookings", href: "/bookings" },
+    { label: "Tracking", href: "/tracking" },
+  ];
+
+  const driverLinks = [
+    { label: "Dashboard", href: "/driver" },
+    { label: "Assignments", href: "/driver/assignments" },
+    { label: "Trips", href: "/driver/trips" },
+    { label: "Earnings", href: "/driver/earnings" },
+  ];
+
+  const adminLinks = [
+    { label: "Dashboard", href: "/admin" },
+    { label: "Bookings", href: "/admin/bookings" },
+    { label: "Drivers", href: "/admin/drivers" },
+    { label: "Trucks", href: "/admin/trucks" },
+    { label: "Users", href: "/admin/users" },
+  ];
+
+  const navLinks =
+    user?.role === "admin"
+      ? adminLinks
+      : user?.role === "driver"
+        ? driverLinks
+        : customerLinks;
+
+  function isActive(href: string) {
+    if (href === "/") {
+      return pathname === "/";
     }
 
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [mobileMenuOpen]);
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
 
   return (
-    <>
-      {/* ================= NAVBAR ================= */}
-      <header className="sticky top-0 z-100 w-full border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
-        <nav className="relative mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:h-20">
-          {/* LOGO */}
-          <Link
-            href="/"
-            className="flex shrink-0 items-center gap-2 text-xl font-bold text-slate-900 sm:text-2xl"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white">
-              <Truck size={21} />
-            </span>
-
-            <span>
-              Truck<span className="text-orange-500">Lagbe</span>
-            </span>
-          </Link>
-
-          {/* DESKTOP MENU */}
-          <div className="hidden items-center gap-6 xl:flex">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`text-sm font-semibold transition ${
-                  isActive(link.href)
-                    ? "text-orange-500"
-                    : "text-slate-600 hover:text-orange-500"
-                }`}
-              >
-                {link.name}
-              </Link>
-            ))}
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-4 sm:px-6">
+        {/* LOGO */}
+        <Link
+          href="/"
+          className="flex items-center gap-3"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm">
+            <Truck size={22} />
           </div>
 
-          {/* DESKTOP BUTTONS */}
-          <div className="hidden items-center gap-4 xl:flex">
-            {isLoaded &&
-              (user ? (
-                <>
-                  <Link
-                    href={dashboardFor(user.role)}
-                    className="flex items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-orange-500"
-                  >
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">
-                      {user.name.charAt(0).toUpperCase()}
-                    </span>
+          <div>
+            <p className="text-lg font-extrabold leading-none text-slate-900">
+              OI-Truck
+            </p>
 
-                    <span className="flex flex-col leading-tight">
-                      <span>{user.name}</span>
-                      <span className="text-xs font-medium capitalize text-slate-400">
-                        {user.role}
-                      </span>
-                    </span>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              Truck Lagbe
+            </p>
+          </div>
+        </Link>
+
+        {/* DESKTOP NAVIGATION */}
+        <nav className="hidden items-center gap-1 lg:flex">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                isActive(link.href)
+                  ? "bg-orange-50 text-orange-600"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        {/* DESKTOP RIGHT SIDE */}
+        <div className="hidden items-center gap-3 lg:flex">
+          {!isLoaded ? (
+            <div className="h-10 w-28 animate-pulse rounded-xl bg-slate-100" />
+          ) : !user ? (
+            <>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+              >
+                <LogIn size={18} />
+                Login
+              </Link>
+
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-orange-600"
+              >
+                <UserPlus size={18} />
+                Register
+              </Link>
+            </>
+          ) : (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileOpen((previous) => !previous)}
+                className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 transition hover:border-orange-300 hover:bg-orange-50"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-100 font-bold text-orange-600">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+
+                <div className="max-w-32 text-left">
+                  <p className="truncate text-sm font-bold text-slate-800">
+                    {user.name}
+                  </p>
+
+                  <p className="text-xs capitalize text-slate-500">
+                    {user.role}
+                  </p>
+                </div>
+
+                <ChevronDown
+                  size={17}
+                  className={`text-slate-400 transition ${
+                    profileOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 mt-3 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
+                  <div className="border-b border-slate-100 px-4 py-3">
+                    <p className="truncate text-sm font-bold text-slate-900">
+                      {user.name}
+                    </p>
+
+                    <p className="mt-1 truncate text-xs text-slate-500">
+                      {user.email}
+                    </p>
+                  </div>
+
+                  <Link
+                    href={getDashboardLink()}
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-orange-50 hover:text-orange-600"
+                  >
+                    <LayoutDashboard size={18} />
+                    {getDashboardLabel()}
                   </Link>
+
+                  <Link
+                    href={
+                      user.role === "driver" ? "/driver/profile" : "/profile"
+                    }
+                    className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-orange-50 hover:text-orange-600"
+                  >
+                    <User size={18} />
+                    My Profile
+                  </Link>
+
+                  <div className="my-2 border-t border-slate-100" />
 
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 transition hover:text-red-500"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-bold text-red-500 transition hover:bg-red-50"
                   >
-                    <LogOut size={17} />
+                    <LogOut size={18} />
                     Logout
                   </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    className={`text-sm font-semibold transition ${
-                      pathname === "/login"
-                        ? "text-orange-500"
-                        : "text-slate-700 hover:text-orange-500"
-                    }`}
-                  >
-                    Login
-                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-                  <Link
-                    href="/register"
-                    className={`text-sm font-semibold transition ${
-                      pathname.startsWith("/register") ||
-                      pathname.startsWith("/driver/register")
-                        ? "text-orange-500"
-                        : "text-slate-700 hover:text-orange-500"
-                    }`}
-                  >
-                    Sign up
-                  </Link>
-                </>
-              ))}
+        {/* MOBILE MENU BUTTON */}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          className="rounded-xl p-2.5 text-slate-700 transition hover:bg-slate-100 lg:hidden"
+          aria-label="Open menu"
+        >
+          <Menu size={24} />
+        </button>
+      </div>
 
-            <Link
-              href="/booking"
-              className="rounded-xl bg-orange-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-600"
-            >
-              Book a Truck
-            </Link>
-          </div>
+      {/* MOBILE OVERLAY */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/50 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
 
-          {/* MOBILE MENU BUTTON */}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            className="relative z-110 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 active:scale-95 xl:hidden"
-            aria-label="Open navigation menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            <Menu size={24} />
-          </button>
-        </nav>
-      </header>
-
-      {/* ================= DARK OVERLAY ================= */}
-      <div
-        onClick={() => setMobileMenuOpen(false)}
-        className={`fixed inset-0 z-200 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300 xl:hidden ${
-          mobileMenuOpen
-            ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
-        }`}
-        aria-hidden="true"
-      />
-
-      {/* ================= SLIDE-IN MOBILE MENU ================= */}
+      {/* MOBILE SIDEBAR */}
       <aside
-        className={`fixed right-0 top-0 z-300 flex h-dvh w-[86%] max-w-sm flex-col bg-white shadow-2xl transition-transform duration-300 ease-out xl:hidden ${
+        className={`fixed right-0 top-0 z-60 flex h-screen w-[85%] max-w-sm flex-col bg-white shadow-2xl transition-transform duration-300 lg:hidden ${
           mobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
-        aria-label="Mobile navigation"
       >
-        {/* MENU HEADER */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-5">
-          <Link
-            href="/"
-            onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-3"
-          >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-500 text-white">
+        {/* MOBILE HEADER */}
+        <div className="flex items-center justify-between border-b border-slate-200 p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white">
               <Truck size={22} />
-            </span>
+            </div>
 
             <div>
-              <h2 className="text-lg font-bold text-slate-900">
-                Truck<span className="text-orange-500">Lagbe</span>
-              </h2>
+              <p className="font-extrabold text-slate-900">OI-Truck</p>
 
-              <p className="text-xs text-slate-400">Smart Logistics</p>
+              <p className="text-xs text-slate-500">Truck Lagbe</p>
             </div>
-          </Link>
+          </div>
 
-          {/* CLOSE BUTTON */}
           <button
             type="button"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition hover:bg-red-50 hover:text-red-500 active:scale-95"
-            aria-label="Close navigation menu"
+            className="rounded-xl p-2 text-slate-600 hover:bg-slate-100"
+            aria-label="Close menu"
           >
-            <X size={22} />
+            <X size={24} />
           </button>
         </div>
 
-        {/* NAVIGATION */}
-        <nav className="flex-1 overflow-y-auto px-4 py-6">
-          <p className="mb-3 px-3 text-xs font-bold uppercase tracking-[0.15em] text-slate-400">
+        {/* USER INFO */}
+        {isLoaded && user && (
+          <div className="border-b border-slate-200 bg-orange-50 p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500 text-lg font-bold text-white">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+
+              <div className="min-w-0">
+                <p className="truncate font-bold text-slate-900">{user.name}</p>
+
+                <p className="mt-1 text-sm capitalize text-orange-600">
+                  {user.role}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MOBILE LINKS */}
+        <nav className="flex-1 overflow-y-auto p-4">
+          <p className="mb-3 px-3 text-xs font-bold uppercase tracking-wider text-slate-400">
             Navigation
           </p>
 
-          <div className="space-y-2">
-            {navLinks.map((link) => {
-              const Icon = link.icon;
-
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`group flex items-center justify-between rounded-2xl px-4 py-3.5 transition ${
-                    isActive(link.href)
-                      ? "bg-orange-50 text-orange-600"
-                      : "text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${
-                        isActive(link.href)
-                          ? "bg-orange-500 text-white"
-                          : "bg-slate-100 text-slate-600 group-hover:bg-orange-100 group-hover:text-orange-500"
-                      }`}
-                    >
-                      <Icon size={21} />
-                    </div>
-
-                    <span className="font-semibold">{link.name}</span>
-                  </div>
-
-                  <ChevronRight
-                    size={20}
-                    className={`transition ${
-                      isActive(link.href)
-                        ? "text-orange-500"
-                        : "text-slate-300 group-hover:translate-x-1 group-hover:text-orange-500"
-                    }`}
-                  />
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* ACCOUNT */}
-          <div className="mt-7 border-t border-slate-100 pt-6">
-            <p className="mb-3 px-3 text-xs font-bold uppercase tracking-[0.15em] text-slate-400">
-              Account
-            </p>
-
-            {isLoaded && user ? (
-              <>
-                <Link
-                  href={dashboardFor(user.role)}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="group flex items-center justify-between rounded-2xl px-4 py-3.5 text-slate-700 transition hover:bg-slate-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-100 text-sm font-bold text-orange-600">
-                      {user.name.charAt(0).toUpperCase()}
-                    </div>
-
-                    <div>
-                      <span className="block font-semibold">{user.name}</span>
-                      <span className="block text-xs font-medium capitalize text-slate-400">
-                        {user.role}
-                      </span>
-                    </div>
-                  </div>
-
-                  <ChevronRight size={20} className="text-slate-300" />
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="group mt-2 flex w-full items-center justify-between rounded-2xl px-4 py-3.5 text-slate-700 transition hover:bg-red-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition group-hover:bg-red-100 group-hover:text-red-500">
-                      <LogOut size={21} />
-                    </div>
-
-                    <span className="font-semibold">Logout</span>
-                  </div>
-
-                  <ChevronRight size={20} className="text-slate-300" />
-                </button>
-              </>
-            ) : (
-              <>
-                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className={`group flex items-center justify-between rounded-2xl px-4 py-3.5 transition ${pathname === "/login" ? "bg-orange-50 text-orange-600" : "text-slate-700 hover:bg-slate-50"}`}>
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 group-hover:bg-orange-100 group-hover:text-orange-500">
-                      <User size={21} />
-                    </div>
-
-                    <span className="font-semibold">Login</span>
-                  </div>
-
-                  <ChevronRight size={20} className="text-slate-300" />
-                </Link>
-
-                <Link href="/register" onClick={() => setMobileMenuOpen(false)} className={`group mt-2 flex items-center justify-between rounded-2xl px-4 py-3.5 transition ${pathname.startsWith("/register") || pathname.startsWith("/driver/register") ? "bg-orange-50 text-orange-600" : "text-slate-700 hover:bg-slate-50"}`}>
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-100 text-orange-600"><User size={21} /></div>
-                    <span className="font-semibold">Sign up</span>
-                  </div>
-                  <ChevronRight size={20} className="text-slate-300" />
-                </Link>
-              </>
-            )}
+          <div className="space-y-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`block rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  isActive(link.href)
+                    ? "bg-orange-500 text-white"
+                    : "text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </nav>
 
-        {/* BOTTOM CTA */}
-        <div className="border-t border-slate-100 p-5">
-          <Link
-            href="/booking"
-            onClick={() => setMobileMenuOpen(false)}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-4 font-bold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 active:scale-[0.98]"
-          >
-            <Truck size={20} />
-            Book a Truck
-          </Link>
+        {/* MOBILE BOTTOM */}
+        <div className="border-t border-slate-200 p-4">
+          {!isLoaded ? (
+            <div className="h-12 animate-pulse rounded-xl bg-slate-100" />
+          ) : !user ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Link
+                href="/login"
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-700"
+              >
+                <LogIn size={18} />
+                Login
+              </Link>
 
-          <p className="mt-4 text-center text-xs text-slate-400">
-            Fast • Reliable • Easy
-          </p>
+              <Link
+                href="/register"
+                className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 font-bold text-white"
+              >
+                Register
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Link
+                href={user.role === "driver" ? "/driver/profile" : "/profile"}
+                className="flex items-center gap-3 rounded-xl px-4 py-3 font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                <User size={19} />
+                My Profile
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 font-bold text-red-500 hover:bg-red-50"
+              >
+                <LogOut size={19} />
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </aside>
-    </>
+    </header>
   );
 }

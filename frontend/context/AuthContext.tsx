@@ -8,8 +8,16 @@ import {
   useState,
 } from "react";
 
-import { User, UserRole } from "@/types/user";
 import { initialUsers } from "@/data/users";
+import { User, UserRole } from "@/types/user";
+
+interface RegisterData {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  role?: UserRole;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -25,7 +33,7 @@ interface AuthContextType {
     user?: User;
   };
 
-  register: (userData: Omit<User, "id" | "createdAt" | "isActive">) => {
+  register: (data: RegisterData) => {
     success: boolean;
     message?: string;
     user?: User;
@@ -35,58 +43,71 @@ interface AuthContextType {
 
   updateUser: (updatedUser: User) => void;
 
+  updateUserStatus: (userId: string, isActive: boolean) => void;
+
   getUsersByRole: (role: UserRole) => User[];
+
+  getUserById: (id: string) => User | undefined;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const USERS_KEY = "trucklagbe_users";
+const CURRENT_USER_KEY = "trucklagbe_current_user";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-
-  const [users, setUsers] = useState<User[]>(initialUsers);
-
+  const [users, setUsers] = useState<User[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   /* LOAD DATA */
-
   useEffect(() => {
-    const savedUsers = localStorage.getItem("trucklagbe_users");
+    try {
+      const savedUsers = localStorage.getItem(USERS_KEY);
+      const savedCurrentUser = localStorage.getItem(CURRENT_USER_KEY);
 
-    const savedUser = localStorage.getItem("trucklagbe_current_user");
-
-    if (savedUsers) {
-      try {
+      if (savedUsers) {
         setUsers(JSON.parse(savedUsers));
-      } catch (error) {
-        console.error("Failed to load users", error);
+      } else {
+        setUsers(initialUsers);
       }
-    }
 
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (error) {
-        console.error("Failed to load current user", error);
+      if (savedCurrentUser) {
+        setUser(JSON.parse(savedCurrentUser));
       }
-    }
+    } catch (error) {
+      console.error("Failed to load authentication data:", error);
 
-    setIsLoaded(true);
+      setUsers(initialUsers);
+    } finally {
+      setIsLoaded(true);
+    }
   }, []);
 
   /* SAVE USERS */
-
   useEffect(() => {
     if (!isLoaded) return;
 
-    localStorage.setItem("trucklagbe_users", JSON.stringify(users));
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
   }, [users, isLoaded]);
 
-  /* LOGIN */
+  /* SAVE CURRENT USER */
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (user) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(CURRENT_USER_KEY);
+    }
+  }, [user, isLoaded]);
 
   function login(email: string, password: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+
     const foundUser = users.find(
       (item) =>
-        item.email.toLowerCase() === email.toLowerCase() &&
+        item.email.toLowerCase() === normalizedEmail &&
         item.password === password,
     );
 
@@ -100,72 +121,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!foundUser.isActive) {
       return {
         success: false,
-        message: "Your account is currently inactive.",
+        message: "Your account has been suspended.",
       };
     }
 
-    setUser(foundUser);
+    const safeUser = { ...foundUser };
 
-    localStorage.setItem("trucklagbe_current_user", JSON.stringify(foundUser));
+    setUser(safeUser);
 
     return {
       success: true,
-      user: foundUser,
+      user: safeUser,
     };
   }
 
-  /* REGISTER */
+  function register(data: RegisterData) {
+    const email = data.email.trim().toLowerCase();
+    const phone = data.phone.trim();
 
-  function register(userData: Omit<User, "id" | "createdAt" | "isActive">) {
     const exists = users.some(
-      (item) => item.email.toLowerCase() === userData.email.toLowerCase(),
+      (item) => item.email.toLowerCase() === email || item.phone === phone,
     );
 
     if (exists) {
       return {
         success: false,
-        message: "This email is already registered.",
+        message: "An account with this email or phone number already exists.",
       };
     }
 
-    // Drivers must be approved by an admin before they can log in.
-    const isActive = userData.role !== "driver";
-
     const newUser: User = {
-      ...userData,
       id: `user-${Date.now()}`,
-      isActive,
+      name: data.name.trim(),
+      email,
+      phone,
+      password: data.password,
+      role: data.role || "customer",
+      isActive: true,
       createdAt: new Date().toISOString(),
     };
 
     setUsers((previousUsers) => [...previousUsers, newUser]);
 
-    // Auto-login active users (customers/admins). Inactive drivers stay
-    // logged out until an admin approves their account.
-    if (isActive) {
-      setUser(newUser);
-
-      localStorage.setItem("trucklagbe_current_user", JSON.stringify(newUser));
-    }
-
     return {
       success: true,
-      message: isActive
-        ? "Registration successful."
-        : "Your driver application has been submitted and is pending admin approval.",
       user: newUser,
     };
   }
 
-  /* LOGOUT */
-
   function logout() {
     setUser(null);
-
-    localStorage.removeItem("trucklagbe_current_user");
   }
-
-  /* UPDATE USER */
 
   function updateUser(updatedUser: User) {
     setUsers((previousUsers) =>
@@ -176,16 +182,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (user?.id === updatedUser.id) {
       setUser(updatedUser);
+    }
+  }
 
-      localStorage.setItem(
-        "trucklagbe_current_user",
-        JSON.stringify(updatedUser),
+  function updateUserStatus(userId: string, isActive: boolean) {
+    const updatedUsers = users.map((item) =>
+      item.id === userId
+        ? {
+            ...item,
+            isActive,
+          }
+        : item,
+    );
+
+    setUsers(updatedUsers);
+
+    if (user?.id === userId) {
+      const updatedCurrentUser = updatedUsers.find(
+        (item) => item.id === userId,
       );
+
+      if (updatedCurrentUser) {
+        setUser(updatedCurrentUser);
+      }
     }
   }
 
   function getUsersByRole(role: UserRole) {
     return users.filter((item) => item.role === role);
+  }
+
+  function getUserById(id: string) {
+    return users.find((item) => item.id === id);
   }
 
   return (
@@ -198,7 +226,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         updateUser,
+        updateUserStatus,
         getUsersByRole,
+        getUserById,
       }}
     >
       {children}
