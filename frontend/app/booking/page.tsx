@@ -9,7 +9,7 @@ import RouteGuard from "@/components/auth/RouteGuard";
 
 export default function BookingPage() {
   return (
-    <RouteGuard role="customer">
+    <RouteGuard role="customer" redirectTo="/login">
       <BookingContent />
     </RouteGuard>
   );
