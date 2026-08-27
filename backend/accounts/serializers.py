@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .admin import User
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+from .models import User
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -50,7 +52,9 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError(
-                {"password_confirm": "Passwords do not match."}
+                {
+                    "password_confirm": "Passwords do not match."
+                }
             )
 
         return attrs
@@ -65,3 +69,37 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.save()
 
         return user
+
+
+class LoginSerializer(TokenObtainPairSerializer):
+    username_field = "username"
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        data["user"] = {
+            "id": self.user.id,
+            "username": self.user.username,
+            "email": self.user.email,
+            "first_name": self.user.first_name,
+            "last_name": self.user.last_name,
+            "phone": self.user.phone,
+            "role": self.user.role,
+        }
+
+        return data
+
+
+class MeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
+            "role",
+        ]
+        read_only_fields = fields

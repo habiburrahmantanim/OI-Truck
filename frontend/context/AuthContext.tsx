@@ -2,233 +2,150 @@
 
 import {
   createContext,
-  ReactNode,
   useContext,
   useEffect,
   useState,
+  ReactNode,
 } from "react";
 
-import { initialUsers } from "@/data/users";
-import { User, UserRole } from "@/types/user";
+import { api } from "@/lib/api";
+
+import { User, LoginResponse, RegisterResponse } from "@/types/auth";
 
 interface RegisterData {
-  name: string;
+  username: string;
   email: string;
-  phone: string;
   password: string;
-  role?: UserRole;
+  password_confirm: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  role?: "CUSTOMER" | "DRIVER";
 }
 
 interface AuthContextType {
   user: User | null;
-  users: User[];
-  isLoaded: boolean;
-
-  login: (
-    email: string,
-    password: string,
-  ) => {
-    success: boolean;
-    message?: string;
-    user?: User;
-  };
-
-  register: (data: RegisterData) => {
-    success: boolean;
-    message?: string;
-    user?: User;
-  };
-
+  accessToken: string | null;
+  loading: boolean;
+  login: (username: string, password: string) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => void;
-
-  updateUser: (updatedUser: User) => void;
-
-  updateUserStatus: (userId: string, isActive: boolean) => void;
-
-  getUsersByRole: (role: UserRole) => User[];
-
-  getUserById: (id: string) => User | undefined;
+  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const USERS_KEY = "trucklagbe_users";
-const CURRENT_USER_KEY = "trucklagbe_current_user";
+const ACCESS_TOKEN_KEY = "oi_truck_access";
+const REFRESH_TOKEN_KEY = "oi_truck_refresh";
+const USER_KEY = "oi_truck_user";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
 
-  /* LOAD DATA */
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    try {
-      const savedUsers = localStorage.getItem(USERS_KEY);
-      const savedCurrentUser = localStorage.getItem(CURRENT_USER_KEY);
+    const initializeAuth = async () => {
+      const storedAccessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
 
-      if (savedUsers) {
-        setUsers(JSON.parse(savedUsers));
-      } else {
-        setUsers(initialUsers);
+      const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+
+      const storedUser = localStorage.getItem(USER_KEY);
+
+      if (!storedAccessToken) {
+        setLoading(false);
+        return;
       }
 
-      if (savedCurrentUser) {
-        setUser(JSON.parse(savedCurrentUser));
-      }
-    } catch (error) {
-      console.error("Failed to load authentication data:", error);
+      try {
+        const currentUser = await api.get<User>("/auth/me/", storedAccessToken);
 
-      setUsers(initialUsers);
-    } finally {
-      setIsLoaded(true);
-    }
+        setAccessToken(storedAccessToken);
+        setUser(currentUser);
+
+        localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+      } catch {
+        if (storedRefreshToken) {
+          try {
+            const refreshed = await api.post<{ access: string }>(
+              "/auth/refresh/",
+              {
+                refresh: storedRefreshToken,
+              },
+            );
+
+            localStorage.setItem(ACCESS_TOKEN_KEY, refreshed.access);
+
+            setAccessToken(refreshed.access);
+
+            const currentUser = await api.get<User>(
+              "/auth/me/",
+              refreshed.access,
+            );
+
+            setUser(currentUser);
+
+            localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+          } catch {
+            logout();
+          }
+        } else {
+          logout();
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
-  /* SAVE USERS */
-  useEffect(() => {
-    if (!isLoaded) return;
+  const login = async (username: string, password: string) => {
+    const response = await api.post<LoginResponse>("/auth/login/", {
+      username,
+      password,
+    });
 
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  }, [users, isLoaded]);
+    localStorage.setItem(ACCESS_TOKEN_KEY, response.access);
 
-  /* SAVE CURRENT USER */
-  useEffect(() => {
-    if (!isLoaded) return;
+    localStorage.setItem(REFRESH_TOKEN_KEY, response.refresh);
 
-    if (user) {
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-    } else {
-      localStorage.removeItem(CURRENT_USER_KEY);
-    }
-  }, [user, isLoaded]);
+    localStorage.setItem(USER_KEY, JSON.stringify(response.user));
 
-  function login(email: string, password: string) {
-    const normalizedEmail = email.trim().toLowerCase();
+    setAccessToken(response.access);
+    setUser(response.user);
+  };
 
-    const foundUser = users.find(
-      (item) =>
-        item.email.toLowerCase() === normalizedEmail &&
-        item.password === password,
-    );
+  const register = async (data: RegisterData) => {
+    const response = await api.post<RegisterResponse>("/auth/register/", {
+      ...data,
+      role: data.role || "CUSTOMER",
+    });
 
-    if (!foundUser) {
-      return {
-        success: false,
-        message: "Invalid email or password.",
-      };
-    }
+    return response;
+  };
 
-    if (!foundUser.isActive) {
-      return {
-        success: false,
-        message: "Your account has been suspended.",
-      };
-    }
+  const logout = () => {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
 
-    const safeUser = { ...foundUser };
-
-    setUser(safeUser);
-
-    return {
-      success: true,
-      user: safeUser,
-    };
-  }
-
-  function register(data: RegisterData) {
-    const email = data.email.trim().toLowerCase();
-    const phone = data.phone.trim();
-
-    const exists = users.some(
-      (item) => item.email.toLowerCase() === email || item.phone === phone,
-    );
-
-    if (exists) {
-      return {
-        success: false,
-        message: "An account with this email or phone number already exists.",
-      };
-    }
-
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name: data.name.trim(),
-      email,
-      phone,
-      password: data.password,
-      role: data.role || "customer",
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    };
-
-    setUsers((previousUsers) => [...previousUsers, newUser]);
-
-    return {
-      success: true,
-      user: newUser,
-    };
-  }
-
-  function logout() {
+    setAccessToken(null);
     setUser(null);
-  }
-
-  function updateUser(updatedUser: User) {
-    setUsers((previousUsers) =>
-      previousUsers.map((item) =>
-        item.id === updatedUser.id ? updatedUser : item,
-      ),
-    );
-
-    if (user?.id === updatedUser.id) {
-      setUser(updatedUser);
-    }
-  }
-
-  function updateUserStatus(userId: string, isActive: boolean) {
-    const updatedUsers = users.map((item) =>
-      item.id === userId
-        ? {
-            ...item,
-            isActive,
-          }
-        : item,
-    );
-
-    setUsers(updatedUsers);
-
-    if (user?.id === userId) {
-      const updatedCurrentUser = updatedUsers.find(
-        (item) => item.id === userId,
-      );
-
-      if (updatedCurrentUser) {
-        setUser(updatedCurrentUser);
-      }
-    }
-  }
-
-  function getUsersByRole(role: UserRole) {
-    return users.filter((item) => item.role === role);
-  }
-
-  function getUserById(id: string) {
-    return users.find((item) => item.id === id);
-  }
+  };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        users,
-        isLoaded,
+        accessToken,
+        loading,
         login,
         register,
         logout,
-        updateUser,
-        updateUserStatus,
-        getUsersByRole,
-        getUserById,
+        isAuthenticated: !!user,
       }}
     >
       {children}
