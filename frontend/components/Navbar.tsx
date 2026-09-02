@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ChevronDown,
@@ -9,7 +9,6 @@ import {
   LogIn,
   LogOut,
   Menu,
-  Package,
   Truck,
   User,
   UserPlus,
@@ -21,16 +20,33 @@ import { useAuth } from "@/context/AuthContext";
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { user, logout, isLoaded } = useAuth();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
+  // Close all open navigation overlays on route change
   useEffect(() => {
     setMobileMenuOpen(false);
     setProfileOpen(false);
   }, [pathname]);
+
+  // Handle clicking outside the desktop profile dropdown menu
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setProfileOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   function handleLogout() {
     logout();
@@ -41,20 +57,22 @@ export default function Navbar() {
 
   function getDashboardLink() {
     if (!user) return "/";
-
     if (user.role === "admin") return "/admin";
     if (user.role === "driver") return "/driver";
-
     return "/bookings";
   }
 
   function getDashboardLabel() {
     if (!user) return "";
-
     if (user.role === "admin") return "Admin Panel";
     if (user.role === "driver") return "Driver Panel";
-
     return "My Bookings";
+  }
+
+  function getProfileLink() {
+    if (user?.role === "driver") return "/driver/profile";
+    if (user?.role === "admin") return "/admin/profile";
+    return "/profile";
   }
 
   const customerLinks = [
@@ -88,10 +106,7 @@ export default function Navbar() {
         : customerLinks;
 
   function isActive(href: string) {
-    if (href === "/") {
-      return pathname === "/";
-    }
-
+    if (href === "/") return pathname === "/";
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
@@ -112,7 +127,6 @@ export default function Navbar() {
             <p className="text-lg font-extrabold leading-none text-slate-900">
               OI-Truck
             </p>
-
             <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               Truck Lagbe
             </p>
@@ -136,12 +150,12 @@ export default function Navbar() {
           ))}
         </nav>
 
-        {/* DESKTOP RIGHT SIDE */}
+        {/* DESKTOP RIGHT SIDE ACTION BUTTONS */}
         <div className="hidden items-center gap-3 lg:flex">
-          {!isLoaded ? (
+          {isLoaded === false ? (
             <div className="h-10 w-28 animate-pulse rounded-xl bg-slate-100" />
           ) : !user ? (
-            <>
+            <div className="flex items-center gap-2">
               <Link
                 href="/login"
                 className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-100"
@@ -157,25 +171,24 @@ export default function Navbar() {
                 <UserPlus size={18} />
                 Register
               </Link>
-            </>
+            </div>
           ) : (
-            <div className="relative">
+            <div className="relative" ref={dropdownRef}>
               <button
                 type="button"
-                onClick={() => setProfileOpen((previous) => !previous)}
+                onClick={() => setProfileOpen((prev) => !prev)}
                 className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 transition hover:border-orange-300 hover:bg-orange-50"
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-100 font-bold text-orange-600">
-                  {user.name.charAt(0).toUpperCase()}
+                  {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
                 </div>
 
                 <div className="max-w-32 text-left">
                   <p className="truncate text-sm font-bold text-slate-800">
-                    {user.name}
+                    {user?.name || "User"}
                   </p>
-
                   <p className="text-xs capitalize text-slate-500">
-                    {user.role}
+                    {user?.role || "Customer"}
                   </p>
                 </div>
 
@@ -191,11 +204,10 @@ export default function Navbar() {
                 <div className="absolute right-0 mt-3 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
                   <div className="border-b border-slate-100 px-4 py-3">
                     <p className="truncate text-sm font-bold text-slate-900">
-                      {user.name}
+                      {user?.name}
                     </p>
-
                     <p className="mt-1 truncate text-xs text-slate-500">
-                      {user.email}
+                      {user?.email}
                     </p>
                   </div>
 
@@ -208,9 +220,7 @@ export default function Navbar() {
                   </Link>
 
                   <Link
-                    href={
-                      user.role === "driver" ? "/driver/profile" : "/profile"
-                    }
+                    href={getProfileLink()}
                     className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-orange-50 hover:text-orange-600"
                   >
                     <User size={18} />
@@ -244,7 +254,7 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* MOBILE OVERLAY */}
+      {/* MOBILE BACKDROP OVERLAY */}
       {mobileMenuOpen && (
         <div
           className="fixed inset-0 z-50 bg-slate-950/50 lg:hidden"
@@ -252,22 +262,19 @@ export default function Navbar() {
         />
       )}
 
-      {/* MOBILE SIDEBAR */}
+      {/* MOBILE SIDEBAR PANELS */}
       <aside
         className={`fixed right-0 top-0 z-60 flex h-screen w-[85%] max-w-sm flex-col bg-white shadow-2xl transition-transform duration-300 lg:hidden ${
           mobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* MOBILE HEADER */}
         <div className="flex items-center justify-between border-b border-slate-200 p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white">
               <Truck size={22} />
             </div>
-
             <div>
               <p className="font-extrabold text-slate-900">OI-Truck</p>
-
               <p className="text-xs text-slate-500">Truck Lagbe</p>
             </div>
           </div>
@@ -282,17 +289,16 @@ export default function Navbar() {
           </button>
         </div>
 
-        {/* USER INFO */}
-        {isLoaded && user && (
+        {/* MOBILE LOGGED IN USER CARD */}
+        {user && (
           <div className="border-b border-slate-200 bg-orange-50 p-5">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500 text-lg font-bold text-white">
-                {user.name.charAt(0).toUpperCase()}
+                {user.name ? user.name.charAt(0).toUpperCase() : "U"}
               </div>
 
               <div className="min-w-0">
                 <p className="truncate font-bold text-slate-900">{user.name}</p>
-
                 <p className="mt-1 text-sm capitalize text-orange-600">
                   {user.role}
                 </p>
@@ -324,15 +330,13 @@ export default function Navbar() {
           </div>
         </nav>
 
-        {/* MOBILE BOTTOM */}
+        {/* MOBILE FOOTER ACTIONS */}
         <div className="border-t border-slate-200 p-4">
-          {!isLoaded ? (
-            <div className="h-12 animate-pulse rounded-xl bg-slate-100" />
-          ) : !user ? (
+          {!user ? (
             <div className="grid grid-cols-2 gap-3">
               <Link
                 href="/login"
-                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-700"
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 font-bold text-slate-700 hover:bg-slate-50"
               >
                 <LogIn size={18} />
                 Login
@@ -340,7 +344,7 @@ export default function Navbar() {
 
               <Link
                 href="/register"
-                className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 font-bold text-white"
+                className="flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 font-bold text-white hover:bg-orange-600"
               >
                 Register
               </Link>
@@ -348,7 +352,7 @@ export default function Navbar() {
           ) : (
             <div className="space-y-2">
               <Link
-                href={user.role === "driver" ? "/driver/profile" : "/profile"}
+                href={getProfileLink()}
                 className="flex items-center gap-3 rounded-xl px-4 py-3 font-semibold text-slate-700 hover:bg-slate-100"
               >
                 <User size={19} />

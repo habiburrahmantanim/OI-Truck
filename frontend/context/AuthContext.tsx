@@ -9,7 +9,6 @@ import {
 } from "react";
 
 import { api } from "@/lib/api";
-
 import { User, LoginResponse, RegisterResponse } from "@/types/auth";
 
 interface RegisterData {
@@ -23,12 +22,19 @@ interface RegisterData {
   role?: "CUSTOMER" | "DRIVER";
 }
 
+// Extended UI User interface to guarantee property mapping
+export interface UIUser extends User {
+  name: string;
+  role: string;
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: UIUser | null;
   accessToken: string | null;
   loading: boolean;
+  isLoaded: boolean; // Added so Navbar can destructure `isLoaded`
   login: (username: string, password: string) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  register: (data: RegisterData) => Promise<any>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -39,20 +45,49 @@ const ACCESS_TOKEN_KEY = "oi_truck_access";
 const REFRESH_TOKEN_KEY = "oi_truck_refresh";
 const USER_KEY = "oi_truck_user";
 
+// Helper to normalize user properties (lowercase roles, fallback names)
+function normalizeUser(rawUser: User | null): UIUser | null {
+  if (!rawUser) return null;
+
+  const fullName = [rawUser.first_name, rawUser.last_name]
+    .filter(Boolean)
+    .join(" ");
+
+  return {
+    ...rawUser,
+    name: fullName || rawUser.username || "User",
+    role: (rawUser.role || "customer").toLowerCase(),
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-
+  const [user, setUser] = useState<UIUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-
   const [loading, setLoading] = useState(true);
+
+  const logout = () => {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+
+    setAccessToken(null);
+    setUser(null);
+  };
 
   useEffect(() => {
     const initializeAuth = async () => {
       const storedAccessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-
       const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-
       const storedUser = localStorage.getItem(USER_KEY);
+
+      // Hydrate instantly from localStorage to avoid initial flash
+      if (storedUser) {
+        try {
+          setUser(normalizeUser(JSON.parse(storedUser)));
+        } catch {
+          // Ignore parse errors
+        }
+      }
 
       if (!storedAccessToken) {
         setLoading(false);
@@ -61,32 +96,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const currentUser = await api.get<User>("/auth/me/", storedAccessToken);
+        const normalized = normalizeUser(currentUser);
 
         setAccessToken(storedAccessToken);
-        setUser(currentUser);
-
+        setUser(normalized);
         localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
       } catch {
         if (storedRefreshToken) {
           try {
             const refreshed = await api.post<{ access: string }>(
               "/auth/refresh/",
-              {
-                refresh: storedRefreshToken,
-              },
+              { refresh: storedRefreshToken },
             );
 
             localStorage.setItem(ACCESS_TOKEN_KEY, refreshed.access);
-
             setAccessToken(refreshed.access);
 
             const currentUser = await api.get<User>(
               "/auth/me/",
               refreshed.access,
             );
+            const normalized = normalizeUser(currentUser);
 
-            setUser(currentUser);
-
+            setUser(normalized);
             localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
           } catch {
             logout();
@@ -108,14 +140,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
 
+    const normalized = normalizeUser(response.user);
+
     localStorage.setItem(ACCESS_TOKEN_KEY, response.access);
-
     localStorage.setItem(REFRESH_TOKEN_KEY, response.refresh);
-
     localStorage.setItem(USER_KEY, JSON.stringify(response.user));
 
     setAccessToken(response.access);
-    setUser(response.user);
+    setUser(normalized);
   };
 
   const register = async (data: RegisterData) => {
@@ -127,21 +159,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return response;
   };
 
-  const logout = () => {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-
-    setAccessToken(null);
-    setUser(null);
-  };
-
   return (
     <AuthContext.Provider
       value={{
         user,
         accessToken,
         loading,
+        isLoaded: !loading, // Maps loading boolean to isLoaded flag
         login,
         register,
         logout,

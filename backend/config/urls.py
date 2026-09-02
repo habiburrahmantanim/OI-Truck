@@ -10,5 +10,10 @@ urlpatterns = [
         include("accounts.urls"),
     ),
 
+    path(
+        "api/bookings/",
+        include("bookings.urls"),
+    ),
+
     path("api/", include("api.urls"))
 ]

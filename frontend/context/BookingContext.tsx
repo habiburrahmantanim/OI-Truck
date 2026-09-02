@@ -2,276 +2,178 @@
 
 import {
   createContext,
-  ReactNode,
   useContext,
   useEffect,
   useState,
+  ReactNode,
 } from "react";
 
+import { Booking, CreateBookingData } from "@/types/booking";
+
 import {
-  Booking,
-  BookingStatus,
-  PaymentMethod,
-  PaymentStatus,
-} from "@/types/booking";
+  getBookings,
+  createBooking as createBookingApi,
+  updateBooking as updateBookingApi,
+  deleteBooking as deleteBookingApi,
+} from "@/lib/bookingApi";
 
-export type {
-  Booking,
-  BookingStatus,
-  PaymentMethod,
-  PaymentStatus,
-} from "@/types/booking";
-
-/* =========================================
-   CONTEXT TYPE
-========================================= */
+import { useAuth } from "@/context/AuthContext";
 
 interface BookingContextType {
   bookings: Booking[];
 
-  isLoaded: boolean;
+  loading: boolean;
+  error: string | null;
 
-  addBooking: (booking: Booking) => void;
+  refreshBookings: () => Promise<void>;
 
-  getBookingById: (id: string) => Booking | undefined;
+  addBooking: (data: CreateBookingData) => Promise<Booking>;
 
-  updateBookingStatus: (id: string, status: BookingStatus) => void;
+  updateBooking: (
+    id: number,
+    data: Partial<CreateBookingData>,
+  ) => Promise<Booking>;
 
-  updatePaymentStatus: (
-    id: string,
-    paymentStatus: PaymentStatus,
-    paymentMethod?: PaymentMethod,
-    paymentId?: string,
-  ) => void;
+  deleteBooking: (id: number) => Promise<void>;
 
-  updateBooking: (booking: Booking) => void;
-
-  deleteBooking: (id: string) => void;
-
-  cancelBooking: (id: string) => void;
+  getBookingById: (id: number) => Booking | undefined;
 }
-
-/* =========================================
-   CONTEXT
-========================================= */
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
-/* =========================================
-   PROVIDER
-========================================= */
-
 export function BookingProvider({ children }: { children: ReactNode }) {
+  const { accessToken, isAuthenticated, loading: authLoading } = useAuth();
+
   const [bookings, setBookings] = useState<Booking[]>([]);
 
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  /* =========================================
-     LOAD BOOKINGS
-  ========================================= */
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    try {
-      const savedBookings = localStorage.getItem("trucklagbe_bookings");
-
-      if (savedBookings) {
-        const parsedBookings = JSON.parse(savedBookings) as Booking[];
-
-        const normalizedBookings = parsedBookings.map((booking) => ({
-          ...booking,
-
-          bookingId: booking.bookingId ?? booking.id,
-
-          customerPhone: booking.customerPhone ?? booking.phone,
-
-          dropLocation: booking.dropLocation ?? booking.deliveryLocation,
-
-          estimatedFare:
-            booking.estimatedFare ?? booking.totalPrice ?? booking.price,
-
-          price:
-            booking.price ?? booking.totalPrice ?? booking.estimatedFare ?? 0,
-
-          paymentStatus: booking.paymentStatus ?? "Unpaid",
-        }));
-
-        setBookings(normalizedBookings);
-      }
-    } catch (error) {
-      console.error("Failed to load bookings:", error);
-
+  const refreshBookings = async () => {
+    if (!accessToken) {
       setBookings([]);
-    } finally {
-      setIsLoaded(true);
+      setLoading(false);
+      return;
     }
-  }, []);
-
-  /* =========================================
-     SAVE BOOKINGS
-  ========================================= */
-
-  useEffect(() => {
-    if (!isLoaded) return;
 
     try {
-      localStorage.setItem("trucklagbe_bookings", JSON.stringify(bookings));
-    } catch (error) {
-      console.error("Failed to save bookings:", error);
+      setLoading(true);
+      setError(null);
+
+      const data = await getBookings(accessToken);
+
+      setBookings(data);
+    } catch (err) {
+      console.error("Failed to load bookings:", err);
+
+      setError(err instanceof Error ? err.message : "Failed to load bookings.");
+    } finally {
+      setLoading(false);
     }
-  }, [bookings, isLoaded]);
+  };
 
-  /* =========================================
-     ADD BOOKING
-  ========================================= */
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
 
-  function addBooking(booking: Booking) {
-    const normalizedBooking: Booking = {
-      ...booking,
+    if (!isAuthenticated || !accessToken) {
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
 
-      bookingId: booking.bookingId ?? booking.id,
+    refreshBookings();
+  }, [authLoading, isAuthenticated, accessToken]);
 
-      price: Number(booking.price) || 0,
+  const addBooking = async (data: CreateBookingData) => {
+    if (!accessToken) {
+      throw new Error("You must be logged in to create a booking.");
+    }
 
-      paymentStatus: booking.paymentStatus ?? "Unpaid",
+    try {
+      setError(null);
 
-      createdAt: booking.createdAt ?? new Date().toISOString(),
-    };
+      const booking = await createBookingApi(data, accessToken);
 
-    setBookings((previousBookings) => [normalizedBooking, ...previousBookings]);
-  }
+      setBookings((current) => [booking, ...current]);
 
-  /* =========================================
-     GET BOOKING
-  ========================================= */
+      return booking;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to create booking.";
 
-  function getBookingById(id: string): Booking | undefined {
-    return bookings.find(
-      (booking) =>
-        String(booking.id) === String(id) ||
-        String(booking.bookingId) === String(id),
-    );
-  }
+      setError(message);
 
-  /* =========================================
-     UPDATE BOOKING STATUS
-  ========================================= */
+      throw err;
+    }
+  };
 
-  function updateBookingStatus(id: string, status: BookingStatus) {
-    setBookings((previousBookings) =>
-      previousBookings.map((booking) =>
-        String(booking.id) === String(id)
-          ? {
-              ...booking,
+  const updateBooking = async (
+    id: number,
+    data: Partial<CreateBookingData>,
+  ) => {
+    if (!accessToken) {
+      throw new Error("You must be logged in.");
+    }
 
-              status,
+    try {
+      setError(null);
 
-              updatedAt: new Date().toISOString(),
-            }
-          : booking,
-      ),
-    );
-  }
+      const updated = await updateBookingApi(id, data, accessToken);
 
-  /* =========================================
-     UPDATE PAYMENT STATUS
-  ========================================= */
+      setBookings((current) =>
+        current.map((booking) => (booking.id === id ? updated : booking)),
+      );
 
-  function updatePaymentStatus(
-    id: string,
-    paymentStatus: PaymentStatus,
-    paymentMethod?: PaymentMethod,
-    paymentId?: string,
-  ) {
-    setBookings((previousBookings) =>
-      previousBookings.map((booking) => {
-        if (String(booking.id) !== String(id)) {
-          return booking;
-        }
+      return updated;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update booking.";
 
-        return {
-          ...booking,
+      setError(message);
 
-          paymentStatus,
+      throw err;
+    }
+  };
 
-          ...(paymentMethod
-            ? {
-                paymentMethod,
-              }
-            : {}),
+  const deleteBooking = async (id: number) => {
+    if (!accessToken) {
+      throw new Error("You must be logged in.");
+    }
 
-          ...(paymentId
-            ? {
-                paymentId,
-                transactionId: paymentId,
-              }
-            : {}),
+    try {
+      setError(null);
 
-          updatedAt: new Date().toISOString(),
-        };
-      }),
-    );
-  }
+      await deleteBookingApi(id, accessToken);
 
-  /* =========================================
-     UPDATE COMPLETE BOOKING
-  ========================================= */
+      setBookings((current) => current.filter((booking) => booking.id !== id));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to delete booking.";
 
-  function updateBooking(updatedBooking: Booking) {
-    setBookings((previousBookings) =>
-      previousBookings.map((booking) =>
-        String(booking.id) === String(updatedBooking.id)
-          ? {
-              ...updatedBooking,
+      setError(message);
 
-              updatedAt: new Date().toISOString(),
-            }
-          : booking,
-      ),
-    );
-  }
+      throw err;
+    }
+  };
 
-  /* =========================================
-     DELETE BOOKING
-  ========================================= */
-
-  function deleteBooking(id: string) {
-    setBookings((previousBookings) =>
-      previousBookings.filter((booking) => String(booking.id) !== String(id)),
-    );
-  }
-
-  /* =========================================
-     CANCEL BOOKING
-  ========================================= */
-
-  function cancelBooking(id: string) {
-    updateBookingStatus(id, "Cancelled");
-  }
-
-  /* =========================================
-     PROVIDER
-  ========================================= */
+  const getBookingById = (id: number) => {
+    return bookings.find((booking) => booking.id === id);
+  };
 
   return (
     <BookingContext.Provider
       value={{
         bookings,
-
-        isLoaded,
-
+        loading,
+        error,
+        refreshBookings,
         addBooking,
-
-        getBookingById,
-
-        updateBookingStatus,
-
-        updatePaymentStatus,
-
         updateBooking,
-
         deleteBooking,
-
-        cancelBooking,
+        getBookingById,
       }}
     >
       {children}
@@ -279,22 +181,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/* =========================================
-   HOOK
-========================================= */
-
-export function useBookings() {
+export function useBooking() {
   const context = useContext(BookingContext);
 
   if (!context) {
-    throw new Error("useBookings must be used inside BookingProvider");
+    throw new Error("useBooking must be used inside BookingProvider");
   }
 
   return context;
 }
-
-/* =========================================
-   COMPATIBILITY HOOK
-========================================= */
-
-export const useBooking = useBookings;
