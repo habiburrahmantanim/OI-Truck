@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "drivers",
     "tracking",
     "payments",
+    'admin_api',
 
 ]
 

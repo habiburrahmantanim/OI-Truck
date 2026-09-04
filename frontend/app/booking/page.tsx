@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { useBooking } from "@/context/BookingContext";
 import RouteGuard from "@/components/auth/RouteGuard";
+import { useSearchParams } from "next/navigation";
+import { useTruck } from "@/context/TruckContext";
+
 
 export default function BookingPage() {
   return (

@@ -69,3 +69,25 @@ export interface CreateBookingData {
 
   payment_method?: PaymentMethod;
 }
+
+export type PaymentStatus =
+  | "Unpaid"
+  | "Pending"
+  | "Paid"
+  | "Failed"
+  | "Refunded";
+
+export type PaymentMethod = "bKash" | "Nagad" | "Card" | "Cash";
+
+export interface Payment {
+  id: number;
+  booking: number;
+  booking_id: string;
+  transaction_id: string;
+  amount: string;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
