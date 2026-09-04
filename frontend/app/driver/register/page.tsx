@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Car, CreditCard, FileCheck2, Lock, Mail, Phone, Truck, UserRound } from "lucide-react";
+import {
+  Car,
+  CreditCard,
+  FileCheck2,
+  Lock,
+  Mail,
+  Phone,
+  Truck,
+  UserRound,
+} from "lucide-react";
 import { type FormEvent, useState } from "react";
 
 import { Success } from "@/app/register/page";
@@ -14,7 +23,7 @@ export default function DriverRegisterPage() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  function submit(e: FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     setMessage("");
@@ -23,22 +32,25 @@ export default function DriverRegisterPage() {
     const form = new FormData(e.currentTarget);
 
     // Creates an inactive driver User; admin approval activates the account.
-    const result = register({
-      name: String(form.get("name") || "").trim(),
-      email: String(form.get("email") || "").trim(),
-      phone: String(form.get("phone") || "").trim(),
-      password: String(form.get("password") || ""),
-      role: "driver",
-    });
+    try {
+      await register({
+        name: String(form.get("name") || "").trim(),
+        email: String(form.get("email") || "").trim(),
+        phone: String(form.get("phone") || "").trim(),
+        password: String(form.get("password") || ""),
+        role: "driver",
+      });
 
-    if (!result.success) {
-      setMessage(result.message || "Registration failed. Please try again.");
+      setDone(true);
+    } catch (err) {
+      setMessage(
+        err instanceof Error
+          ? err.message
+          : "Registration failed. Please try again.",
+      );
+    } finally {
       setSubmitting(false);
-      return;
     }
-
-    // Driver accounts are inactive until approved — do NOT log in here.
-    setDone(true);
   }
 
   if (done)
@@ -84,20 +96,58 @@ export default function DriverRegisterPage() {
 
         <form onSubmit={submit} className="mt-8 space-y-8">
           <FormGroup title="Personal details">
-            <Field name="name" label="Full name" icon={<UserRound size={18} />} />
-            <Field name="phone" label="Phone number" type="tel" icon={<Phone size={18} />} />
-            <Field name="email" label="Email address" type="email" icon={<Mail size={18} />} />
-            <Field name="password" label="Password" type="password" minLength={8} icon={<Lock size={18} />} />
+            <Field
+              name="name"
+              label="Full name"
+              icon={<UserRound size={18} />}
+            />
+            <Field
+              name="phone"
+              label="Phone number"
+              type="tel"
+              icon={<Phone size={18} />}
+            />
+            <Field
+              name="email"
+              label="Email address"
+              type="email"
+              icon={<Mail size={18} />}
+            />
+            <Field
+              name="password"
+              label="Password"
+              type="password"
+              minLength={8}
+              icon={<Lock size={18} />}
+            />
           </FormGroup>
 
           <FormGroup title="Verification">
-            <Field name="license" label="Driving licence number" icon={<CreditCard size={18} />} />
-            <Field name="nid" label="National ID number" icon={<FileCheck2 size={18} />} />
+            <Field
+              name="license"
+              label="Driving licence number"
+              icon={<CreditCard size={18} />}
+            />
+            <Field
+              name="nid"
+              label="National ID number"
+              icon={<FileCheck2 size={18} />}
+            />
           </FormGroup>
 
           <FormGroup title="Vehicle details">
-            <Field name="vehicle" label="Vehicle type" icon={<Car size={18} />} placeholder="e.g. Pickup Truck" />
-            <Field name="registration" label="Vehicle registration number" icon={<Truck size={18} />} placeholder="e.g. DHAKA METRO-TA 13-4521" />
+            <Field
+              name="vehicle"
+              label="Vehicle type"
+              icon={<Car size={18} />}
+              placeholder="e.g. Pickup Truck"
+            />
+            <Field
+              name="registration"
+              label="Vehicle registration number"
+              icon={<Truck size={18} />}
+              placeholder="e.g. DHAKA METRO-TA 13-4521"
+            />
           </FormGroup>
 
           <label className="flex items-start gap-2 text-sm text-slate-500">
@@ -129,7 +179,13 @@ export default function DriverRegisterPage() {
   );
 }
 
-function FormGroup({ title, children }: { title: string; children: React.ReactNode }) {
+function FormGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <fieldset>
       <legend className="font-bold text-slate-900">{title}</legend>

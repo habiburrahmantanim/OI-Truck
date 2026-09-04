@@ -9,7 +9,7 @@ import {
   Truck,
 } from "lucide-react";
 
-import { useBookings } from "@/context/BookingContext";
+import { useBooking } from "@/context/BookingContext";
 
 const activity = [
   ["BK-48291", "Dhaka to Chattogram", "In Transit", "12 min ago"],
@@ -19,25 +19,23 @@ const activity = [
 ];
 
 export default function AdminDashboard() {
-  const { bookings } = useBookings();
+  const { bookings } = useBooking();
 
   const active = bookings.filter(
-    (booking) =>
-      !["Delivered", "Completed", "Cancelled"].includes(booking.status),
+    (booking) => !["Completed", "Cancelled"].includes(booking.status),
   ).length;
 
   const delivered = bookings.filter(
-    (booking) =>
-      booking.status === "Delivered",
+    (booking) => booking.status === "Completed",
   ).length;
 
   const revenue = bookings
     .filter((booking) => booking.status !== "Cancelled")
-    .reduce((sum, booking) => sum + booking.totalPrice, 0);
+    .reduce((sum, booking) => sum + Number(booking.price || 0), 0);
 
   const rows = bookings.length
     ? bookings.slice(0, 5).map((booking) => [
-        booking.id,
+        booking.bookingId,
         `${booking.pickupLocation} to ${booking.deliveryLocation}`,
         booking.status,
         new Date(booking.createdAt).toLocaleDateString("en-BD", {
@@ -131,7 +129,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[580px] text-left text-sm">
+            <table className="w-full min-w-145 text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Booking</th>
@@ -148,7 +146,7 @@ export default function AdminDashboard() {
                       {id}
                     </td>
 
-                    <td className="max-w-[220px] truncate px-5 py-4 text-slate-600">
+                    <td className="max-w-55 truncate px-5 py-4 text-slate-600">
                       {route}
                     </td>
 
@@ -173,7 +171,7 @@ export default function AdminDashboard() {
           </p>
 
           <div className="mt-7 flex items-center justify-center">
-            <div className="relative flex h-40 w-40 items-center justify-center rounded-full border-[18px] border-orange-500 border-b-slate-200 border-r-slate-200">
+            <div className="relative flex h-40 w-40 items-center justify-center rounded-full border-18 border-orange-500 border-b-slate-200 border-r-slate-200">
               <div className="text-center">
                 <p className="text-3xl font-bold text-slate-900">24</p>
                 <p className="text-xs text-slate-500">Available</p>

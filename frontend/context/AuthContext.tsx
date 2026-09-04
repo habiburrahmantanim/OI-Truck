@@ -12,18 +12,15 @@ import { api } from "@/lib/api";
 import { User, LoginResponse, RegisterResponse } from "@/types/auth";
 
 interface RegisterData {
-  username: string;
+  name: string;
   email: string;
   password: string;
-  password_confirm: string;
-  first_name: string;
-  last_name: string;
   phone: string;
-  role?: "CUSTOMER" | "DRIVER";
+  role?: "customer" | "driver";
 }
 
 // Extended UI User interface to guarantee property mapping
-export interface UIUser extends User {
+export interface UIUser extends Omit<User, "role"> {
   name: string;
   role: string;
 }
@@ -34,7 +31,7 @@ interface AuthContextType {
   loading: boolean;
   isLoaded: boolean; // Added so Navbar can destructure `isLoaded`
   login: (username: string, password: string) => Promise<void>;
-  register: (data: RegisterData) => Promise<any>;
+  register: (data: RegisterData) => Promise<RegisterResponse>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -151,12 +148,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (data: RegisterData) => {
-    const response = await api.post<RegisterResponse>("/auth/register/", {
-      ...data,
-      role: data.role || "CUSTOMER",
-    });
+    const nameParts = data.name.trim().split(/\s+/);
 
-    return response;
+    return api.post<RegisterResponse>("/auth/register/", {
+      username: data.email.trim().toLowerCase(),
+      email: data.email.trim().toLowerCase(),
+      password: data.password,
+      password_confirm: data.password,
+      first_name: nameParts.shift() || "",
+      last_name: nameParts.join(" "),
+      phone: data.phone.trim(),
+      role: data.role || "customer",
+    });
   };
 
   return (

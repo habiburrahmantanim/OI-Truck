@@ -23,6 +23,7 @@ interface BookingContextType {
   bookings: Booking[];
 
   loading: boolean;
+  isLoaded: boolean;
   error: string | null;
 
   refreshBookings: () => Promise<void>;
@@ -37,6 +38,11 @@ interface BookingContextType {
   deleteBooking: (id: number) => Promise<void>;
 
   getBookingById: (id: number) => Booking | undefined;
+
+  updateBookingStatus: (
+    id: number,
+    status: Booking["status"],
+  ) => Promise<Booking>;
 }
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
@@ -163,17 +169,22 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     return bookings.find((booking) => booking.id === id);
   };
 
+  const updateBookingStatus = (id: number, status: Booking["status"]) =>
+    updateBooking(id, { status });
+
   return (
     <BookingContext.Provider
       value={{
         bookings,
         loading,
+        isLoaded: !loading,
         error,
         refreshBookings,
         addBooking,
         updateBooking,
         deleteBooking,
         getBookingById,
+        updateBookingStatus,
       }}
     >
       {children}
@@ -190,3 +201,6 @@ export function useBooking() {
 
   return context;
 }
+
+export const useBookings = useBooking;
+export type { Booking };

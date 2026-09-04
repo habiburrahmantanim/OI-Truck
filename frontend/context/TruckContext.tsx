@@ -173,3 +173,5 @@ export function useTruck() {
 
   return context;
 }
+
+export const useTrucks = useTruck;

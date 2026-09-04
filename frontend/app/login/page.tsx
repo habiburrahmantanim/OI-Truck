@@ -63,41 +63,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = login(email.trim(), password);
-
-      /*
-       * Your AuthContext may return:
-       * - boolean
-       * - User
-       * - undefined
-       *
-       * We handle the common cases.
-       */
-
-      if (result instanceof Promise) {
-        const loggedInUser = await result;
-
-        if (!loggedInUser) {
-          setError("Invalid email or password.");
-          return;
-        }
-
-        if (typeof loggedInUser === "object" && "role" in loggedInUser) {
-          redirectByRole(loggedInUser.role);
-        }
-
-        return;
-      }
-
-      if (!result) {
-        setError("Invalid email or password.");
-        return;
-      }
-
-      /*
-       * AuthContext updates user asynchronously.
-       * The useEffect above will redirect once user changes.
-       */
+      await login(email.trim(), password);
     } catch (err) {
       console.error("Login error:", err);
       setError("Something went wrong. Please try again.");

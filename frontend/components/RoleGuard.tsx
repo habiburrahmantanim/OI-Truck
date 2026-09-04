@@ -4,7 +4,7 @@ import { ReactNode, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/context/AuthContext";
-import { UserRole } from "@/types/user";
+type UserRole = "customer" | "driver" | "admin";
 
 interface RoleGuardProps {
   children: ReactNode;

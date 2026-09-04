@@ -21,7 +21,7 @@ export default function CustomerRegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
@@ -31,8 +31,8 @@ export default function CustomerRegisterPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must contain at least 6 characters.");
+    if (password.length < 8) {
+      setError("Password must contain at least 8 characters.");
       return;
     }
 
@@ -43,22 +43,21 @@ export default function CustomerRegisterPage() {
 
     setLoading(true);
 
-    const result = register({
-      name,
-      email,
-      phone,
-      password,
-      role: "customer",
-    });
+    try {
+      await register({
+        name,
+        email,
+        phone,
+        password,
+        role: "customer",
+      });
 
-    setLoading(false);
-
-    if (!result.success) {
-      setError(result.message || "Registration failed.");
-      return;
+      router.push("/login?registered=customer");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registration failed.");
+    } finally {
+      setLoading(false);
     }
-
-    router.push("/login?registered=customer");
   }
 
   return (

@@ -207,9 +207,7 @@ class AdminDashboardView(APIView):
 
         total_users = User.objects.count()
 
-        total_customers = User.objects.filter(
-            role="CUSTOMER"
-        ).count()
+        total_customers = User.objects.filter(role__iexact="customer").count()
 
         total_drivers = Driver.objects.count()
 

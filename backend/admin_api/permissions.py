@@ -15,4 +15,4 @@ class IsAdminUser(BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        return getattr(user, "role", None) == "ADMIN"
+        return str(getattr(user, "role", "")).lower() == "admin"

@@ -6,9 +6,6 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { useBooking } from "@/context/BookingContext";
 import RouteGuard from "@/components/auth/RouteGuard";
-import { useSearchParams } from "next/navigation";
-import { useTruck } from "@/context/TruckContext";
-
 
 export default function BookingPage() {
   return (
@@ -47,7 +44,7 @@ function BookingContent() {
      SUBMIT BOOKING
   ========================================= */
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
@@ -95,65 +92,27 @@ function BookingContent() {
 
     setSubmitting(true);
 
-    /* =====================================
-       CREATE BOOKING ID
-    ===================================== */
+    try {
+      const booking = await addBooking({
+        customer_name: customerName.trim(),
+        customer_phone: phone.trim(),
+        customer_email: email.trim() || undefined,
+        pickup_location: pickupLocation.trim(),
+        delivery_location: deliveryLocation.trim(),
+        vehicle_type: vehicleType,
+        booking_date: date,
+        booking_time: time,
+        notes: notes.trim() || undefined,
+        price: numericPrice,
+      });
 
-    const bookingId = `BK-${Date.now()}`;
-
-    /* =====================================
-       CREATE BOOKING
-    ===================================== */
-
-    addBooking({
-      id: bookingId,
-
-      bookingId,
-
-      customerName: customerName.trim(),
-
-      customerPhone: phone.trim(),
-
-      phone: phone.trim(),
-
-      customerEmail: email.trim() || undefined,
-
-      pickupLocation: pickupLocation.trim(),
-
-      deliveryLocation: deliveryLocation.trim(),
-
-      dropLocation: deliveryLocation.trim(),
-
-      vehicleType,
-
-      date,
-
-      time,
-
-      price: numericPrice,
-
-      estimatedFare: numericPrice,
-
-      totalPrice: numericPrice,
-
-      status: "Pending",
-
-      paymentStatus: "Unpaid",
-
-      notes: notes.trim() || undefined,
-
-      createdAt: new Date().toISOString(),
-
-      updatedAt: new Date().toISOString(),
-    });
-
-    /* =====================================
-       GO TO BOOKING DETAILS
-    ===================================== */
-
-    setTimeout(() => {
-      router.push(`/bookings/${bookingId}`);
-    }, 300);
+      router.push(`/bookings/${booking.id}`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create booking.",
+      );
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -451,7 +410,7 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
         {label}
       </p>
 
-      <p className="mt-1 break-words text-sm font-semibold text-gray-900">
+      <p className="mt-1 wrap-break-word text-sm font-semibold text-gray-900">
         {value}
       </p>
     </div>

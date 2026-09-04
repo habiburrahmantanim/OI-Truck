@@ -5,6 +5,33 @@ import { ArrowRight, Truck, UserRound } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
 
+export function Success({
+  title,
+  description,
+  href,
+  action,
+}: {
+  title: string;
+  description: string;
+  href: string;
+  action: string;
+}) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
+      <div className="max-w-lg rounded-2xl bg-white p-8 text-center shadow-sm">
+        <h1 className="text-3xl font-bold text-slate-900">{title}</h1>
+        <p className="mt-3 leading-7 text-slate-500">{description}</p>
+        <Link
+          href={href}
+          className="mt-7 inline-flex rounded-xl bg-orange-500 px-5 py-3 font-semibold text-white hover:bg-orange-600"
+        >
+          {action}
+        </Link>
+      </div>
+    </main>
+  );
+}
+
 export default function RegisterPage() {
   return (
     <>

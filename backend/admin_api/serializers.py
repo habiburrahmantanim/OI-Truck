@@ -29,11 +29,8 @@ class AdminUserSerializer(serializers.ModelSerializer):
         ]
 
     def validate_role(self, value):
-        valid_roles = [
-            "CUSTOMER",
-            "DRIVER",
-            "ADMIN",
-        ]
+        value = value.lower()
+        valid_roles = ["customer", "driver", "admin"]
 
         if value not in valid_roles:
             raise serializers.ValidationError(
@@ -189,7 +186,7 @@ class AdminDriverSerializer(serializers.ModelSerializer):
         ]
 
     def validate_user(self, user):
-        if getattr(user, "role", None) != "DRIVER":
+        if str(getattr(user, "role", "")).lower() != "driver":
             raise serializers.ValidationError(
                 "Selected user must have DRIVER role."
             )

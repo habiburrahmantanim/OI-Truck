@@ -5,6 +5,7 @@ from .models import User
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(required=False, allow_blank=True)
     password = serializers.CharField(
         write_only=True,
         min_length=8,
@@ -57,6 +58,9 @@ class RegisterSerializer(serializers.ModelSerializer):
                 }
             )
 
+        if not attrs.get("username"):
+            attrs["username"] = attrs["email"]
+
         return attrs
 
     def create(self, validated_data):
@@ -75,6 +79,12 @@ class LoginSerializer(TokenObtainPairSerializer):
     username_field = "username"
 
     def validate(self, attrs):
+        username = attrs.get("username", "").strip()
+        user = User.objects.filter(email__iexact=username).first()
+
+        if user:
+            attrs["username"] = user.username
+
         data = super().validate(attrs)
 
         data["user"] = {
